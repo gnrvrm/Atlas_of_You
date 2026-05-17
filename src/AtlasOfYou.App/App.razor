@@ -1,0 +1,15 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>Sayfa bulunamadı</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <main class="not-found" role="alert">
+                <h1>Sayfa bulunamadı</h1>
+                <a href="">Atlas'a dön</a>
+            </main>
+        </LayoutView>
+    </NotFound>
+</Router>

@@ -1,0 +1,345 @@
+@page "/"
+@using System.Text.Json
+@inject HttpClient Http
+
+<PageTitle>Atlas of You</PageTitle>
+
+<main class="app-shell">
+    <header class="topbar">
+        <div class="brand">
+            <h1>Atlas of You</h1>
+            <span class="badge">MVP · Referans dağılımı</span>
+        </div>
+        <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
+    </header>
+
+    <section class="workspace">
+        <aside class="input-panel" aria-label="Profil bilgileri">
+            <h2 class="panel-title">Profil</h2>
+
+            @if (loadError is not null)
+            {
+                <div class="error">@loadError</div>
+            }
+            else
+            {
+                <div class="form-grid">
+                    <label class="field">
+                        <span>Ülke</span>
+                        <select class="select" @bind="selectedCountryIso">
+                            @foreach (var country in Countries)
+                            {
+                                <option value="@country.Iso">@country.Name</option>
+                            }
+                        </select>
+                    </label>
+
+                    <div class="field">
+                        <span>Cinsiyet referansı</span>
+                        <div class="segmented">
+                            <label>
+                                <input type="radio" name="sex" checked='@(selectedSex == "male")' @onchange='@(() => selectedSex = "male")' />
+                                <span>Erkek</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="sex" checked='@(selectedSex == "female")' @onchange='@(() => selectedSex = "female")' />
+                                <span>Kadın</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <label class="field">
+                        <span>Doğum yılı</span>
+                        <input class="input" type="number" min="1896" max="@MaxBirthYear" @bind="birthYear" @bind:event="oninput" />
+                    </label>
+
+                    <label class="field">
+                        <span>Boy (cm)</span>
+                        <input class="input" type="number" min="120" max="230" step="0.1" @bind="heightCm" @bind:event="oninput" />
+                    </label>
+
+                    <label class="field">
+                        <span>Kilo (kg)</span>
+                        <input class="input" type="number" min="35" max="250" step="0.1" @bind="weightKg" @bind:event="oninput" />
+                    </label>
+
+                    @if (formError is not null)
+                    {
+                        <div class="error">@formError</div>
+                    }
+
+                    <button class="primary-action" type="button" @onclick="AnalyzeProfile" disabled="@(dataset is null)">
+                        Karşılaştır
+                    </button>
+                </div>
+            }
+        </aside>
+
+        <section class="result-panel" aria-live="polite">
+            @if (dataset is null && loadError is null)
+            {
+                <div class="loading-state">Referans verisi yükleniyor...</div>
+            }
+            else if (result is null)
+            {
+                <div class="empty-state">Profil bilgilerini tamamlayınca karşılaştırma burada görünür.</div>
+            }
+            else
+            {
+                <div class="result-header">
+                    <div>
+                        <h2>@result.CountryName · @SexLabel(result.Sex)</h2>
+                        <span class="badge">@result.Age yaş · @result.HeightReferenceLabel</span>
+                    </div>
+                    <div class="trust">
+                        <strong>Veri güveni yüksek</strong>
+                        <span>Hesaplama yaklaşık</span>
+                        <span>@GeneratedLabel</span>
+                    </div>
+                </div>
+
+                <div class="metric-grid">
+                    <article class="metric">
+                        <span>Ülke boy konumu</span>
+                        <strong>%@FormatNumber(result.HeightPercentileCountry)</strong>
+                        <p>@result.CountryName referansından @FormatSignedCm(result.CountryHeightDifferenceCm)</p>
+                    </article>
+
+                    <article class="metric">
+                        <span>Dünya boy konumu</span>
+                        <strong>%@FormatNumber(result.HeightPercentileWorld)</strong>
+                        <p>Dünya referansından @FormatSignedCm(result.WorldHeightDifferenceCm)</p>
+                    </article>
+
+                    <article class="metric">
+                        <span>BMI</span>
+                        <strong>@FormatNumber(result.Bmi)</strong>
+                        <p>@result.BmiBandLabel bandı · ideal yorumu değil</p>
+                    </article>
+
+                    <article class="metric">
+                        <span>BMI referans konumu</span>
+                        <strong>@PercentileOrDash(result.BmiReferencePercentile)</strong>
+                        <p>@(result.BmiAgeGroup ?? "Yaş grubu yok") · @(result.BmiReferenceYear?.ToString(CultureInfo.InvariantCulture) ?? "Yıl yok")</p>
+                    </article>
+                </div>
+
+                <div class="detail-grid">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Karşılaştırma</th>
+                                <th>Referans</th>
+                                <th>Fark</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Ülke ortalaması</td>
+                                <td>@FormatCm(result.CountryMeanHeightCm)</td>
+                                <td>@FormatSignedCm(result.CountryHeightDifferenceCm)</td>
+                            </tr>
+                            <tr>
+                                <td>Dünya ortalaması</td>
+                                <td>@FormatCm(result.WorldMeanHeightCm)</td>
+                                <td>@FormatSignedCm(result.WorldHeightDifferenceCm)</td>
+                            </tr>
+                            <tr>
+                                <td>1900 kohortu</td>
+                                <td>@(result.Cohort1900MeanHeightCm is null ? "Yok" : FormatCm(result.Cohort1900MeanHeightCm.Value))</td>
+                                <td>@(result.CohortDeltaVs1900Cm is null ? "Yok" : FormatSignedCm(result.CohortDeltaVs1900Cm.Value))</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="distribution">
+                        <h3>BMI referans dağılımı</h3>
+                        @foreach (var band in GetBmiBands(result.BmiCountryReference))
+                        {
+                            <div class="bar-row">
+                                <span>@band.Label</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="@BandStyle(band)"></div>
+                                </div>
+                                <span>@FormatPercent(band.Share)</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="notes">
+                    <h3>Notlar</h3>
+                    <ul>
+                        @foreach (var note in result.Notes)
+                        {
+                            <li>@note</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </section>
+    </section>
+
+    @if (dataset?.Sources.Count > 0)
+    {
+        <section class="source-panel" aria-label="Kaynaklar">
+            <h2>Kaynaklar</h2>
+            <ul class="source-list">
+                @foreach (var source in dataset.Sources)
+                {
+                    <li><a href="@source.Url" target="_blank" rel="noreferrer">@source.Title</a></li>
+                }
+            </ul>
+        </section>
+    }
+</main>
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true,
+    };
+
+    private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
+
+    private ReferenceDataset? dataset;
+    private ComparisonResult? result;
+    private string? loadError;
+    private string? formError;
+
+    private string selectedCountryIso = "TUR";
+    private string selectedSex = "male";
+    private int birthYear = 1990;
+    private double heightCm = 175;
+    private double weightKg = 75;
+
+    private int MaxBirthYear => DateTime.Today.Year - 18;
+
+    private IEnumerable<CountryReference> Countries => dataset?.Countries ?? [];
+
+    private string GeneratedLabel => dataset is null
+        ? string.Empty
+        : $"Veri: {dataset.GeneratedAtUtc.ToLocalTime():dd.MM.yyyy}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            dataset = await Http.GetFromJsonAsync<ReferenceDataset>("data/atlas-reference.json", JsonOptions);
+            if (dataset is null)
+            {
+                loadError = "Referans verisi okunamadı.";
+                return;
+            }
+
+            selectedCountryIso = dataset.Countries.Any(item => item.Iso == "TUR")
+                ? "TUR"
+                : dataset.Countries.FirstOrDefault()?.Iso ?? string.Empty;
+
+            AnalyzeProfile();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Referans verisi yüklenemedi: {ex.Message}";
+        }
+    }
+
+    private void AnalyzeProfile()
+    {
+        if (dataset is null)
+        {
+            return;
+        }
+
+        formError = ValidateForm();
+        if (formError is not null)
+        {
+            result = null;
+            return;
+        }
+
+        try
+        {
+            result = AtlasCalculator.Analyze(
+                dataset,
+                new ProfileInput
+                {
+                    CountryIso = selectedCountryIso,
+                    Sex = selectedSex,
+                    BirthYear = birthYear,
+                    HeightCm = heightCm,
+                    WeightKg = weightKg,
+                },
+                DateOnly.FromDateTime(DateTime.Today));
+        }
+        catch (Exception ex)
+        {
+            result = null;
+            formError = ex.Message;
+        }
+    }
+
+    private string? ValidateForm()
+    {
+        if (string.IsNullOrWhiteSpace(selectedCountryIso))
+        {
+            return "Ülke seçimi gerekli.";
+        }
+
+        if (birthYear < 1896 || birthYear > MaxBirthYear)
+        {
+            return $"Doğum yılı 1896 ile {MaxBirthYear} arasında olmalı.";
+        }
+
+        if (heightCm is < 120 or > 230)
+        {
+            return "Boy değeri 120-230 cm aralığında olmalı.";
+        }
+
+        if (weightKg is < 35 or > 250)
+        {
+            return "Kilo değeri 35-250 kg aralığında olmalı.";
+        }
+
+        return null;
+    }
+
+    private static string SexLabel(string sex) => sex == "male" ? "Erkek" : "Kadın";
+
+    private static string FormatNumber(double value) => value.ToString("0.0", Tr);
+
+    private static string FormatCm(double value) => $"{FormatNumber(value)} cm";
+
+    private static string FormatSignedCm(double value)
+    {
+        var sign = value > 0 ? "+" : string.Empty;
+        return $"{sign}{FormatNumber(value)} cm";
+    }
+
+    private static string PercentileOrDash(double? value) => value is null ? "Yok" : $"%{FormatNumber(value.Value)}";
+
+    private static string FormatPercent(double share) => $"%{(share * 100).ToString("0", Tr)}";
+
+    private static string BandStyle(DistributionBand band)
+    {
+        return $"--share:{(band.Share * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;--bar-color:{band.Color};";
+    }
+
+    private static IEnumerable<DistributionBand> GetBmiBands(BmiReference? reference)
+    {
+        if (reference is null)
+        {
+            yield break;
+        }
+
+        yield return new("18.5 altı", reference.Under185, "#285e8f");
+        yield return new("18.5-20", reference.From185To20, "#0f766e");
+        yield return new("20-25", reference.From20To25, "#4d7c0f");
+        yield return new("25-30", reference.From25To30, "#b45309");
+        yield return new("30-35", reference.From30To35, "#a43d55");
+        yield return new("35-40", reference.From35To40, "#7c2d12");
+        yield return new("40+", reference.Over40, "#4c1d95");
+    }
+
+    private sealed record DistributionBand(string Label, double Share, string Color);
+}

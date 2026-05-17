@@ -1,0 +1,57 @@
+name: Deploy Atlas of You
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore AtlasOfYou.sln
+
+      - name: Test
+        run: dotnet test AtlasOfYou.sln --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish src/AtlasOfYou.App/AtlasOfYou.App.csproj --configuration Release --no-restore --output artifacts/pages
+
+      - name: Prepare GitHub Pages paths
+        shell: pwsh
+        run: |
+          $index = "artifacts/pages/wwwroot/index.html"
+          (Get-Content $index -Raw).Replace('<base href="/" />', '<base href="/Atlas_of_You/" />') | Set-Content $index -NoNewline
+          Copy-Item $index "artifacts/pages/wwwroot/404.html"
+          New-Item -ItemType File -Force "artifacts/pages/wwwroot/.nojekyll" | Out-Null
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: artifacts/pages/wwwroot
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
