@@ -41,11 +41,24 @@ public static class AtlasCalculator
         double? bmiPercentile = bmiCountryReference is null
             ? null
             : EstimateBmiReferencePercentile(bmi, bmiCountryReference);
+        double? countryReferenceBmi = bmiCountryReference is null
+            ? null
+            : EstimateReferenceBmi(bmiCountryReference);
+        double? worldReferenceBmi = bmiWorldReference is null
+            ? null
+            : EstimateReferenceBmi(bmiWorldReference);
+        double? countryEstimatedWeightKg = countryReferenceBmi is null
+            ? null
+            : EstimateWeightKg(heightReference.MeanHeightCm, countryReferenceBmi.Value);
+        double? worldEstimatedWeightKg = worldReferenceBmi is null
+            ? null
+            : EstimateWeightKg(worldHeightReference.MeanHeightCm, worldReferenceBmi.Value);
 
         var notes = new List<string>
         {
             "Boy percentile değeri, referans ortalamasının etrafında yaklaşık popülasyon dağılımı varsayımı kullanır.",
             "BMI sonucu ideal kilo yorumu değildir; aynı yaş/cinsiyet/ülke referans dağılımındaki konumu gösterir.",
+            "Ortalama kilo görseli, BMI kategori dağılımından türetilmiş yaklaşık referans BMI ve ortalama boy ile hesaplanır.",
         };
 
         if (heightReference.HeightReferenceBirthYear != input.BirthYear)
@@ -64,12 +77,18 @@ public static class AtlasCalculator
             BmiReferencePercentile = bmiPercentile is null ? null : Math.Round(bmiPercentile.Value, 1),
             BmiAgeGroup = bmiCountryReference?.AgeGroup,
             BmiReferenceYear = bmiCountryReference?.Year,
+            CountryReferenceBmi = countryReferenceBmi is null ? null : Math.Round(countryReferenceBmi.Value, 1),
+            WorldReferenceBmi = worldReferenceBmi is null ? null : Math.Round(worldReferenceBmi.Value, 1),
             BmiCountryReference = bmiCountryReference,
             BmiWorldReference = bmiWorldReference,
             CountryMeanHeightCm = Math.Round(heightReference.MeanHeightCm, 1),
             WorldMeanHeightCm = Math.Round(worldHeightReference.MeanHeightCm, 1),
             CountryHeightDifferenceCm = Math.Round(input.HeightCm - heightReference.MeanHeightCm, 1),
             WorldHeightDifferenceCm = Math.Round(input.HeightCm - worldHeightReference.MeanHeightCm, 1),
+            CountryEstimatedWeightKg = countryEstimatedWeightKg is null ? null : Math.Round(countryEstimatedWeightKg.Value, 1),
+            WorldEstimatedWeightKg = worldEstimatedWeightKg is null ? null : Math.Round(worldEstimatedWeightKg.Value, 1),
+            CountryWeightDifferenceKg = countryEstimatedWeightKg is null ? null : Math.Round(input.WeightKg - countryEstimatedWeightKg.Value, 1),
+            WorldWeightDifferenceKg = worldEstimatedWeightKg is null ? null : Math.Round(input.WeightKg - worldEstimatedWeightKg.Value, 1),
             HeightPercentileCountry = Math.Round(EstimateNormalPercentile(input.HeightCm, heightReference.MeanHeightCm, sd), 1),
             HeightPercentileWorld = Math.Round(EstimateNormalPercentile(input.HeightCm, worldHeightReference.MeanHeightCm, sd), 1),
             HeightReferenceLabel = heightReference.Label,
@@ -87,6 +106,12 @@ public static class AtlasCalculator
     {
         var heightMeters = heightCm / 100.0;
         return weightKg / (heightMeters * heightMeters);
+    }
+
+    public static double EstimateWeightKg(double heightCm, double bmi)
+    {
+        var heightMeters = heightCm / 100.0;
+        return bmi * heightMeters * heightMeters;
     }
 
     public static bool AgeGroupContains(string ageGroup, int age)
@@ -120,16 +145,7 @@ public static class AtlasCalculator
 
     public static double EstimateBmiReferencePercentile(double bmi, BmiReference reference)
     {
-        var bands = new[]
-        {
-            new BmiBand(14.0, 18.5, reference.Under185),
-            new BmiBand(18.5, 20.0, reference.From185To20),
-            new BmiBand(20.0, 25.0, reference.From20To25),
-            new BmiBand(25.0, 30.0, reference.From25To30),
-            new BmiBand(30.0, 35.0, reference.From30To35),
-            new BmiBand(35.0, 40.0, reference.From35To40),
-            new BmiBand(40.0, 50.0, reference.Over40),
-        };
+        var bands = GetBmiBands(reference);
 
         var total = bands.Sum(item => item.Share);
         if (total <= 0)
@@ -150,6 +166,18 @@ public static class AtlasCalculator
         }
 
         return 99.9;
+    }
+
+    public static double EstimateReferenceBmi(BmiReference reference)
+    {
+        var bands = GetBmiBands(reference);
+        var total = bands.Sum(item => item.Share);
+        if (total <= 0)
+        {
+            return 24.0;
+        }
+
+        return bands.Sum(item => item.Midpoint * item.Share) / total;
     }
 
     public static string GetBmiBandLabel(double bmi)
@@ -276,7 +304,24 @@ public static class AtlasCalculator
         return 0.5 * (1.0 + (sign * erf));
     }
 
-    private sealed record BmiBand(double Lower, double Upper, double Share);
+    private static BmiBand[] GetBmiBands(BmiReference reference)
+    {
+        return
+        [
+            new BmiBand(14.0, 18.5, reference.Under185),
+            new BmiBand(18.5, 20.0, reference.From185To20),
+            new BmiBand(20.0, 25.0, reference.From20To25),
+            new BmiBand(25.0, 30.0, reference.From25To30),
+            new BmiBand(30.0, 35.0, reference.From30To35),
+            new BmiBand(35.0, 40.0, reference.From35To40),
+            new BmiBand(40.0, 50.0, reference.Over40),
+        ];
+    }
+
+    private sealed record BmiBand(double Lower, double Upper, double Share)
+    {
+        public double Midpoint => (Lower + Upper) / 2.0;
+    }
 
     private sealed record HeightReferenceChoice(
         string CountryIso,

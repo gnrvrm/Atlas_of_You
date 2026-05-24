@@ -1,6 +1,7 @@
 @page "/"
 @using System.Text.Json
 @inject HttpClient Http
+@inject IJSRuntime Js
 
 <PageTitle>Atlas of You</PageTitle>
 
@@ -73,6 +74,52 @@
                     </button>
                 </div>
             }
+
+            @if (result is not null)
+            {
+                <section class="body-atlas" aria-label="Vücut atlası">
+                    @{
+                        var averageBody = BuildBody(118, result.CountryMeanHeightCm, result.CountryEstimatedWeightKg ?? weightKg);
+                        var userBody = BuildBody(242, heightCm, weightKg);
+                    }
+
+                    <div class="body-atlas-header">
+                        <h2>Vücut atlası</h2>
+                        <span>Görsel referans</span>
+                    </div>
+
+                    <svg class="body-svg" viewBox="0 0 360 300" role="img" aria-label="Sen ve ülke ortalaması vücut karşılaştırması">
+                        <line class="body-baseline" x1="34" y1="254" x2="326" y2="254" />
+                        <line class="height-guide average-guide" x1="28" y1="@SvgNumber(averageBody.TopY)" x2="332" y2="@SvgNumber(averageBody.TopY)" />
+                        <line class="height-guide user-guide" x1="28" y1="@SvgNumber(userBody.TopY)" x2="332" y2="@SvgNumber(userBody.TopY)" />
+
+                        @DrawBody(averageBody, false)
+                        @DrawBody(userBody, true)
+
+                        <text class="body-label" x="118" y="282" text-anchor="middle">Ülke ort.</text>
+                        <text class="body-label body-label-user" x="242" y="282" text-anchor="middle">Sen</text>
+                        <text class="body-marker average-text" x="30" y="@SvgNumber(averageBody.TopY - 7)">Ort. @FormatCm(result.CountryMeanHeightCm)</text>
+                        <text class="body-marker user-text" x="330" y="@SvgNumber(userBody.TopY - 7)" text-anchor="end">@FormatCm(heightCm)</text>
+                    </svg>
+
+                    <div class="body-stat-grid">
+                        <div>
+                            <span>Boy farkı</span>
+                            <strong>@FormatSignedCm(result.CountryHeightDifferenceCm)</strong>
+                        </div>
+                        <div>
+                            <span>Kilo farkı</span>
+                            <strong>@FormatSignedKg(result.CountryWeightDifferenceKg)</strong>
+                        </div>
+                    </div>
+
+                    <div class="trait-slots" aria-label="Gelecek görsel özellik alanları">
+                        <span>Saç rengi</span>
+                        <span>Göz rengi</span>
+                        <span>El tercihi</span>
+                    </div>
+                </section>
+            }
         </aside>
 
         <section class="result-panel" aria-live="polite">
@@ -97,6 +144,19 @@
                         <span>@GeneratedLabel</span>
                     </div>
                 </div>
+
+                <article class="report-card">
+                    <div>
+                        <span class="report-kicker">Kişisel atlas raporu</span>
+                        <p>@ReportLead</p>
+                    </div>
+                    <button class="copy-action" type="button" @onclick="CopyReportAsync">Raporu kopyala</button>
+                </article>
+
+                @if (copyStatus is not null)
+                {
+                    <div class="copy-status">@copyStatus</div>
+                }
 
                 <div class="metric-grid">
                     <article class="metric">
@@ -124,6 +184,30 @@
                     </article>
                 </div>
 
+                <div class="indicator-grid" aria-label="Görsel gösterge paneli">
+                    <div class="indicator">
+                        <div class="indicator-topline">
+                            <span>Ülke boy percentile</span>
+                            <strong>%@FormatNumber(result.HeightPercentileCountry)</strong>
+                        </div>
+                        <div class="indicator-track">
+                            <div class="indicator-fill" style="@PercentileStyle(result.HeightPercentileCountry)"></div>
+                            <div class="indicator-pin" style="@PercentilePinStyle(result.HeightPercentileCountry)"></div>
+                        </div>
+                    </div>
+
+                    <div class="indicator">
+                        <div class="indicator-topline">
+                            <span>BMI referans konumu</span>
+                            <strong>@PercentileOrDash(result.BmiReferencePercentile)</strong>
+                        </div>
+                        <div class="indicator-track bmi-track">
+                            <div class="indicator-fill" style="@PercentileStyle(result.BmiReferencePercentile ?? 50)"></div>
+                            <div class="indicator-pin" style="@PercentilePinStyle(result.BmiReferencePercentile ?? 50)"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="detail-grid">
                     <table class="comparison-table">
                         <thead>
@@ -149,6 +233,19 @@
                                 <td>@(result.Cohort1900MeanHeightCm is null ? "Yok" : FormatCm(result.Cohort1900MeanHeightCm.Value))</td>
                                 <td>@(result.CohortDeltaVs1900Cm is null ? "Yok" : FormatSignedCm(result.CohortDeltaVs1900Cm.Value))</td>
                             </tr>
+                            <tr>
+                                <td>Yaklaşık ülke kilosu</td>
+                                <td>@FormatOptionalKg(result.CountryEstimatedWeightKg)</td>
+                                <td>@FormatSignedKg(result.CountryWeightDifferenceKg)</td>
+                            </tr>
+                            @if (result.WorldEstimatedWeightKg is not null)
+                            {
+                                <tr>
+                                    <td>Yaklaşık dünya kilosu</td>
+                                    <td>@FormatOptionalKg(result.WorldEstimatedWeightKg)</td>
+                                    <td>@FormatSignedKg(result.WorldWeightDifferenceKg)</td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
 
@@ -206,6 +303,7 @@
     private ComparisonResult? result;
     private string? loadError;
     private string? formError;
+    private string? copyStatus;
 
     private string selectedCountryIso = "TUR";
     private string selectedSex = "male";
@@ -220,6 +318,10 @@
     private string GeneratedLabel => dataset is null
         ? string.Empty
         : $"Veri: {dataset.GeneratedAtUtc.ToLocalTime():dd.MM.yyyy}";
+
+    private string ReportLead => result is null
+        ? string.Empty
+        : $"{result.CountryName} {SexLabel(result.Sex).ToLower(Tr)} referansında boyun yaklaşık %{FormatNumber(result.HeightPercentileCountry)} percentile konumunda; BMI değerin {result.BmiBandLabel} referans bandında ve ideal yorumu değil.";
 
     protected override async Task OnInitializedAsync()
     {
@@ -271,6 +373,7 @@
                     WeightKg = weightKg,
                 },
                 DateOnly.FromDateTime(DateTime.Today));
+            copyStatus = null;
         }
         catch (Exception ex)
         {
@@ -310,20 +413,169 @@
 
     private static string FormatCm(double value) => $"{FormatNumber(value)} cm";
 
+    private static string FormatKg(double value) => $"{FormatNumber(value)} kg";
+
+    private static string FormatOptionalKg(double? value) => value is null ? "Yok" : FormatKg(value.Value);
+
+    private static string SvgNumber(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
     private static string FormatSignedCm(double value)
     {
         var sign = value > 0 ? "+" : string.Empty;
         return $"{sign}{FormatNumber(value)} cm";
     }
 
+    private static string FormatSignedKg(double? value)
+    {
+        if (value is null)
+        {
+            return "Yok";
+        }
+
+        var sign = value > 0 ? "+" : string.Empty;
+        return $"{sign}{FormatNumber(value.Value)} kg";
+    }
+
     private static string PercentileOrDash(double? value) => value is null ? "Yok" : $"%{FormatNumber(value.Value)}";
 
     private static string FormatPercent(double share) => $"%{(share * 100).ToString("0", Tr)}";
+
+    private static string PercentileStyle(double percentile)
+    {
+        return $"--percentile:{ClampPercentile(percentile).ToString("0.###", CultureInfo.InvariantCulture)}%;";
+    }
+
+    private static string PercentilePinStyle(double percentile)
+    {
+        return $"--pin:{ClampPercentile(percentile).ToString("0.###", CultureInfo.InvariantCulture)}%;";
+    }
 
     private static string BandStyle(DistributionBand band)
     {
         return $"--share:{(band.Share * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;--bar-color:{band.Color};";
     }
+
+    private BodyDrawing BuildBody(double centerX, double bodyHeightCm, double bodyWeightKg)
+    {
+        if (result is null)
+        {
+            return new BodyDrawing(centerX, 58, 196, 52, selectedSex);
+        }
+
+        var visualMin = Math.Max(120, Math.Min(heightCm, result.CountryMeanHeightCm) - 14);
+        var visualMax = Math.Min(230, Math.Max(heightCm, result.CountryMeanHeightCm) + 14);
+        if (visualMax - visualMin < 24)
+        {
+            visualMin -= 12;
+            visualMax += 12;
+        }
+
+        var heightPx = 168 + ((bodyHeightCm - visualMin) / (visualMax - visualMin) * 58);
+        heightPx = Math.Clamp(heightPx, 156, 226);
+        var topY = 254 - heightPx;
+        var referenceWeight = Math.Max(result.CountryEstimatedWeightKg ?? bodyWeightKg, 1);
+        var massRatio = Math.Sqrt(Math.Clamp(bodyWeightKg / referenceWeight, 0.62, 1.55));
+        var baseWidth = selectedSex == "male" ? 54 : 50;
+        var width = Math.Clamp(baseWidth * massRatio, 38, 74);
+
+        return new BodyDrawing(centerX, topY, heightPx, width, selectedSex);
+    }
+
+    private RenderFragment DrawBody(BodyDrawing body, bool isUser) => builder =>
+    {
+        var sequence = 0;
+        var css = isUser ? "human-body user-body" : "human-body average-body";
+        var fill = isUser ? "#0f766e" : "#c8d2cf";
+        var stroke = isUser ? "#0f4f4b" : "#7f8b88";
+        var headRadius = Math.Clamp(body.HeightPx * 0.075, 10, 16);
+        var headCy = body.TopY + headRadius;
+        var shoulderY = body.TopY + (body.HeightPx * 0.22);
+        var hipY = body.TopY + (body.HeightPx * 0.58);
+        var legY = body.TopY + (body.HeightPx * 0.83);
+        var footY = body.TopY + body.HeightPx;
+        var shoulderWidth = body.WidthPx;
+        var waistWidth = body.WidthPx * (body.Sex == "male" ? 0.48 : 0.42);
+        var hipWidth = body.WidthPx * (body.Sex == "male" ? 0.64 : 0.82);
+
+        builder.OpenElement(sequence++, "g");
+        builder.AddAttribute(sequence++, "class", css);
+        builder.OpenElement(sequence++, "ellipse");
+        builder.AddAttribute(sequence++, "cx", body.CenterX.ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "cy", headCy.ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "rx", headRadius.ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "ry", (headRadius * 1.08).ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "fill", fill);
+        builder.AddAttribute(sequence++, "stroke", stroke);
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "path");
+        builder.AddAttribute(sequence++, "d", BodyPath(body, shoulderY, hipY, legY, footY, shoulderWidth, waistWidth, hipWidth));
+        builder.AddAttribute(sequence++, "fill", fill);
+        builder.AddAttribute(sequence++, "stroke", stroke);
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "path");
+        builder.AddAttribute(sequence++, "class", "body-arms");
+        builder.AddAttribute(sequence++, "d", ArmPath(body, shoulderY, hipY, shoulderWidth));
+        builder.AddAttribute(sequence++, "stroke", stroke);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private static string BodyPath(BodyDrawing body, double shoulderY, double hipY, double legY, double footY, double shoulderWidth, double waistWidth, double hipWidth)
+    {
+        var cx = body.CenterX;
+        var shoulderLeft = cx - (shoulderWidth / 2);
+        var shoulderRight = cx + (shoulderWidth / 2);
+        var waistLeft = cx - (waistWidth / 2);
+        var waistRight = cx + (waistWidth / 2);
+        var hipLeft = cx - (hipWidth / 2);
+        var hipRight = cx + (hipWidth / 2);
+        var legGap = Math.Max(5, body.WidthPx * 0.1);
+        var footWidth = Math.Max(10, body.WidthPx * 0.18);
+
+        return string.Create(CultureInfo.InvariantCulture, $"M {shoulderLeft} {shoulderY} C {waistLeft} {shoulderY + 18}, {waistLeft} {hipY - 22}, {hipLeft} {hipY} L {cx - legGap} {legY} L {cx - footWidth} {footY} L {cx - 4} {footY} L {cx} {legY + 4} L {cx + 4} {footY} L {cx + footWidth} {footY} L {cx + legGap} {legY} L {hipRight} {hipY} C {waistRight} {hipY - 22}, {waistRight} {shoulderY + 18}, {shoulderRight} {shoulderY} Z");
+    }
+
+    private static string ArmPath(BodyDrawing body, double shoulderY, double hipY, double shoulderWidth)
+    {
+        var cx = body.CenterX;
+        var leftShoulder = cx - (shoulderWidth / 2) + 4;
+        var rightShoulder = cx + (shoulderWidth / 2) - 4;
+        var handY = hipY + 18;
+        return string.Create(CultureInfo.InvariantCulture, $"M {leftShoulder} {shoulderY + 8} C {leftShoulder - 18} {shoulderY + 40}, {leftShoulder - 16} {handY - 10}, {leftShoulder - 6} {handY} M {rightShoulder} {shoulderY + 8} C {rightShoulder + 18} {shoulderY + 40}, {rightShoulder + 16} {handY - 10}, {rightShoulder + 6} {handY}");
+    }
+
+    private string BuildReportText()
+    {
+        if (result is null)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(Environment.NewLine,
+            "Atlas of You - Kişisel Referans Raporu",
+            $"{result.CountryName} / {SexLabel(result.Sex)} / {result.Age} yaş",
+            $"Boy: {FormatCm(heightCm)} ({result.CountryName} referansından {FormatSignedCm(result.CountryHeightDifferenceCm)}, dünya referansından {FormatSignedCm(result.WorldHeightDifferenceCm)})",
+            $"BMI: {FormatNumber(result.Bmi)} ({result.BmiBandLabel} bandı, ideal kilo yorumu değildir)",
+            $"Yaklaşık referans kilo farkı: {FormatSignedKg(result.CountryWeightDifferenceKg)}",
+            $"Veri güveni: yüksek; percentile ve kilo görseli yaklaşık hesaplanır.");
+    }
+
+    private async Task CopyReportAsync()
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("navigator.clipboard.writeText", BuildReportText());
+            copyStatus = "Rapor panoya kopyalandı.";
+        }
+        catch
+        {
+            copyStatus = "Tarayıcı pano erişimine izin vermedi.";
+        }
+    }
+
+    private static double ClampPercentile(double percentile) => Math.Clamp(percentile, 0, 100);
 
     private static IEnumerable<DistributionBand> GetBmiBands(BmiReference? reference)
     {
@@ -342,4 +594,6 @@
     }
 
     private sealed record DistributionBand(string Label, double Share, string Color);
+
+    private sealed record BodyDrawing(double CenterX, double TopY, double HeightPx, double WidthPx, string Sex);
 }

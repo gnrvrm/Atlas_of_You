@@ -20,6 +20,10 @@ public sealed class ComparisonResult
 
     public int? BmiReferenceYear { get; init; }
 
+    public double? CountryReferenceBmi { get; init; }
+
+    public double? WorldReferenceBmi { get; init; }
+
     public BmiReference? BmiCountryReference { get; init; }
 
     public BmiReference? BmiWorldReference { get; init; }
@@ -31,6 +35,14 @@ public sealed class ComparisonResult
     public double CountryHeightDifferenceCm { get; init; }
 
     public double WorldHeightDifferenceCm { get; init; }
+
+    public double? CountryEstimatedWeightKg { get; init; }
+
+    public double? WorldEstimatedWeightKg { get; init; }
+
+    public double? CountryWeightDifferenceKg { get; init; }
+
+    public double? WorldWeightDifferenceKg { get; init; }
 
     public double HeightPercentileCountry { get; init; }
 

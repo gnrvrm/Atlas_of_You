@@ -12,6 +12,14 @@ public sealed class AtlasCalculatorTests
         Assert.Equal(24.7, Math.Round(bmi, 1));
     }
 
+    [Fact]
+    public void EstimateWeightKg_ConvertsReferenceBmiWithHeight()
+    {
+        var weight = AtlasCalculator.EstimateWeightKg(174, 26);
+
+        Assert.Equal(78.7, Math.Round(weight, 1));
+    }
+
     [Theory]
     [InlineData("18-19", 18, true)]
     [InlineData("18-19", 20, false)]
@@ -44,6 +52,9 @@ public sealed class AtlasCalculatorTests
         Assert.True(result.HeightPercentileCountry > 75);
         Assert.Equal("35-39", result.BmiAgeGroup);
         Assert.True(result.BmiReferencePercentile is > 40 and < 70);
+        Assert.Equal(26.2, result.CountryReferenceBmi);
+        Assert.Equal(79.3, result.CountryEstimatedWeightKg);
+        Assert.Equal(0.7, result.CountryWeightDifferenceKg);
         Assert.Equal(7, result.CohortDeltaVs1900Cm);
     }
 
