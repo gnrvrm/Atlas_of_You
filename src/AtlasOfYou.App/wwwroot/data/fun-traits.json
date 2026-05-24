@@ -1,0 +1,378 @@
+{
+  "schemaVersion": 2,
+  "generatedAtUtc": "2026-05-24T17:04:04+00:00",
+  "traitReferences": [
+    {
+      "trait": "eyeColor",
+      "value": "brown",
+      "label": "Kahverengi",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.79,
+      "confidence": "orta",
+      "sourceId": "eye-color-mnt",
+      "color": "#5a3825"
+    },
+    {
+      "trait": "eyeColor",
+      "value": "blue",
+      "label": "Mavi",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.09,
+      "confidence": "orta",
+      "sourceId": "eye-color-mnt",
+      "color": "#4d8bc6"
+    },
+    {
+      "trait": "eyeColor",
+      "value": "hazel",
+      "label": "Ela",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.05,
+      "confidence": "orta",
+      "sourceId": "eye-color-mnt",
+      "color": "#8a6b32"
+    },
+    {
+      "trait": "eyeColor",
+      "value": "amber",
+      "label": "Kehribar",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.04,
+      "confidence": "dusuk",
+      "sourceId": "eye-color-mnt",
+      "color": "#b7791f"
+    },
+    {
+      "trait": "eyeColor",
+      "value": "green",
+      "label": "Yeşil",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.02,
+      "confidence": "orta",
+      "sourceId": "eye-color-mnt",
+      "color": "#4d7c45"
+    },
+    {
+      "trait": "eyeColor",
+      "value": "gray",
+      "label": "Gri",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.01,
+      "confidence": "dusuk",
+      "sourceId": "eye-color-mnt",
+      "color": "#7d8790"
+    },
+    {
+      "trait": "hairColor",
+      "value": "black",
+      "label": "Siyah / koyu kahve",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.78,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#181512"
+    },
+    {
+      "trait": "hairColor",
+      "value": "brown",
+      "label": "Kahverengi",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.11,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#6b4226"
+    },
+    {
+      "trait": "hairColor",
+      "value": "blond",
+      "label": "Sarışın",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.03,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#d6ad5b"
+    },
+    {
+      "trait": "hairColor",
+      "value": "red",
+      "label": "Kızıl",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.015,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#b45325"
+    },
+    {
+      "trait": "hairColor",
+      "value": "gray_white",
+      "label": "Gri / beyaz",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.02,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#c8c8bd"
+    },
+    {
+      "trait": "hairColor",
+      "value": "other",
+      "label": "Diğer / karışık",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.045,
+      "confidence": "dusuk",
+      "sourceId": "human-hair-color-taxonomy",
+      "color": "#8b7d6b"
+    },
+    {
+      "trait": "handPreference",
+      "value": "right",
+      "label": "Sağlak",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.884,
+      "confidence": "orta",
+      "sourceId": "handedness-meta-analysis",
+      "color": "#0f766e"
+    },
+    {
+      "trait": "handPreference",
+      "value": "left",
+      "label": "Solak",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.106,
+      "confidence": "orta",
+      "sourceId": "handedness-meta-analysis",
+      "color": "#285e8f"
+    },
+    {
+      "trait": "handPreference",
+      "value": "ambidextrous",
+      "label": "İki elli",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.01,
+      "confidence": "dusuk",
+      "sourceId": "handedness-meta-analysis",
+      "color": "#b45309"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "o_positive",
+      "label": "0 Rh+",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.37,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#a43d55"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "a_positive",
+      "label": "A Rh+",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.28,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#0f766e"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "b_positive",
+      "label": "B Rh+",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.2,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#285e8f"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "ab_positive",
+      "label": "AB Rh+",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.05,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#b45309"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "o_negative",
+      "label": "0 Rh-",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.04,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#7a2336"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "a_negative",
+      "label": "A Rh-",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.03,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#0f4f4b"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "b_negative",
+      "label": "B Rh-",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.02,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#1d4f77"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "ab_negative",
+      "label": "AB Rh-",
+      "scope": "world",
+      "countryIso": "WORLD",
+      "share": 0.01,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#7c2d12"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "o_positive",
+      "label": "0 Rh+",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.294,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#a43d55"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "a_positive",
+      "label": "A Rh+",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.383,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#0f766e"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "b_positive",
+      "label": "B Rh+",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.132,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#285e8f"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "ab_positive",
+      "label": "AB Rh+",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.064,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#b45309"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "o_negative",
+      "label": "0 Rh-",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.044,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#7a2336"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "a_negative",
+      "label": "A Rh-",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.055,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#0f4f4b"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "b_negative",
+      "label": "B Rh-",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.021,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#1d4f77"
+    },
+    {
+      "trait": "bloodGroup",
+      "value": "ab_negative",
+      "label": "AB Rh-",
+      "scope": "country",
+      "countryIso": "TUR",
+      "share": 0.007,
+      "confidence": "dusuk",
+      "sourceId": "blood-type-country-distribution",
+      "color": "#7c2d12"
+    }
+  ],
+  "sources": [
+    {
+      "id": "eye-color-mnt",
+      "title": "Eye colors: most common and percentages, Medical News Today",
+      "url": "https://www.medicalnewstoday.com/articles/eye-color-percentage",
+      "trust": "medium"
+    },
+    {
+      "id": "handedness-meta-analysis",
+      "title": "Human handedness: a meta-analysis, Psychological Bulletin 2020",
+      "url": "https://research-repository.st-andrews.ac.uk/handle/10023/19889",
+      "trust": "medium"
+    },
+    {
+      "id": "blood-type-country-distribution",
+      "title": "ABO and Rh blood type distribution by country",
+      "url": "https://en.wikipedia.org/wiki/Blood_type_distribution_by_country",
+      "trust": "low"
+    },
+    {
+      "id": "human-hair-color-taxonomy",
+      "title": "Human hair color natural categories",
+      "url": "https://en.wikipedia.org/wiki/Human_hair_color",
+      "trust": "low"
+    }
+  ],
+  "notes": [
+    "Göz rengi, saç rengi, el tercihi ve kan grubu alanları yaklaşık prevalans sinyali olarak sunulur; percentile veya tıbbi/genetik yorum değildir.",
+    "Saç + göz kombinasyonu, iki özelliğin bağımsız olduğu varsayımıyla çarpılarak hesaplanır.",
+    "Kan grubu verileri kaynaklar arasında dağınık olduğu için düşük güven etiketiyle gösterilir."
+  ]
+}

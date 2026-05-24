@@ -53,12 +53,19 @@ public static class AtlasCalculator
         double? worldEstimatedWeightKg = worldReferenceBmi is null
             ? null
             : EstimateWeightKg(worldHeightReference.MeanHeightCm, worldReferenceBmi.Value);
+        var eyeColor = BuildTraitComparison(data, "eyeColor", input.EyeColor, country.Iso, country.Name);
+        var hairColor = BuildTraitComparison(data, "hairColor", input.HairColor, country.Iso, country.Name);
+        var handPreference = BuildTraitComparison(data, "handPreference", input.HandPreference, country.Iso, country.Name);
+        var bloodGroup = BuildTraitComparison(data, "bloodGroup", input.BloodGroup, country.Iso, country.Name);
+        var hairEyeCombination = BuildHairEyeCombination(hairColor, eyeColor);
 
         var notes = new List<string>
         {
             "Boy percentile değeri, referans ortalamasının etrafında yaklaşık popülasyon dağılımı varsayımı kullanır.",
             "BMI sonucu ideal kilo yorumu değildir; aynı yaş/cinsiyet/ülke referans dağılımındaki konumu gösterir.",
             "Ortalama kilo görseli, BMI kategori dağılımından türetilmiş yaklaşık referans BMI ve ortalama boy ile hesaplanır.",
+            "Göz rengi, saç rengi, el tercihi ve kan grubu yaklaşık prevalans sinyali olarak sunulur; tıbbi veya genetik yorum değildir.",
+            "Saç + göz kombinasyonu, iki özelliğin bağımsız olduğu varsayımıyla hesaplanır.",
         };
 
         if (heightReference.HeightReferenceBirthYear != input.BirthYear)
@@ -98,6 +105,11 @@ public static class AtlasCalculator
             CohortDeltaVs1900Cm = cohort1900 is null || selectedCohort is null
                 ? null
                 : Math.Round(selectedCohort.MeanHeightCm - cohort1900.MeanHeightCm, 1),
+            EyeColor = eyeColor,
+            HairColor = hairColor,
+            HairEyeCombination = hairEyeCombination,
+            HandPreference = handPreference,
+            BloodGroup = bloodGroup,
             Notes = notes,
         };
     }
@@ -194,6 +206,65 @@ public static class AtlasCalculator
         };
     }
 
+    public static TraitComparison? BuildTraitComparison(
+        ReferenceDataset data,
+        string trait,
+        string value,
+        string countryIso,
+        string countryName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var reference = FindTraitReference(data, trait, value, countryIso);
+        if (reference is null)
+        {
+            return null;
+        }
+
+        return new TraitComparison
+        {
+            Trait = reference.Trait,
+            Value = reference.Value,
+            Label = reference.Label,
+            Share = Math.Round(reference.Share, 4),
+            Confidence = reference.Confidence,
+            SourceId = reference.SourceId,
+            Color = reference.Color,
+            Scope = reference.Scope,
+            ScopeLabel = BuildScopeLabel(reference, countryName),
+            RarityLabel = GetRarityLabel(reference.Share),
+            OneIn = EstimateOneIn(reference.Share),
+        };
+    }
+
+    public static TraitComparison? BuildHairEyeCombination(TraitComparison? hairColor, TraitComparison? eyeColor)
+    {
+        if (hairColor is null || eyeColor is null)
+        {
+            return null;
+        }
+
+        var share = Math.Clamp(hairColor.Share * eyeColor.Share, 0, 1);
+        return new TraitComparison
+        {
+            Trait = "hairEyeCombination",
+            Value = $"{hairColor.Value}+{eyeColor.Value}",
+            Label = $"{hairColor.Label} saç + {eyeColor.Label.ToLowerInvariant()} göz",
+            Share = Math.Round(share, 5),
+            Confidence = "dusuk",
+            SourceId = $"{hairColor.SourceId}+{eyeColor.SourceId}",
+            Color = hairColor.Color,
+            Scope = "model",
+            ScopeLabel = "Bağımsızlık varsayımı",
+            RarityLabel = GetRarityLabel(share),
+            OneIn = EstimateOneIn(share),
+            Note = "Bu değer saç ve göz renginin birbirinden bağımsız dağıldığı varsayımıyla üretilir.",
+        };
+    }
+
     private static HeightReferenceChoice FindHeightReference(
         ReferenceDataset data,
         string countryIso,
@@ -282,6 +353,48 @@ public static class AtlasCalculator
             item.CountryIso == countryIso &&
             item.Sex == sex &&
             AgeGroupContains(item.AgeGroup, age));
+    }
+
+    private static TraitReference? FindTraitReference(ReferenceDataset data, string trait, string value, string countryIso)
+    {
+        var normalizedTrait = trait.Trim();
+        var normalizedValue = value.Trim();
+
+        return data.TraitReferences.FirstOrDefault(item =>
+                StringComparer.OrdinalIgnoreCase.Equals(item.Trait, normalizedTrait) &&
+                StringComparer.OrdinalIgnoreCase.Equals(item.Value, normalizedValue) &&
+                StringComparer.OrdinalIgnoreCase.Equals(item.CountryIso, countryIso) &&
+                StringComparer.OrdinalIgnoreCase.Equals(item.Scope, "country"))
+            ?? data.TraitReferences.FirstOrDefault(item =>
+                StringComparer.OrdinalIgnoreCase.Equals(item.Trait, normalizedTrait) &&
+                StringComparer.OrdinalIgnoreCase.Equals(item.Value, normalizedValue) &&
+                StringComparer.OrdinalIgnoreCase.Equals(item.CountryIso, "WORLD"));
+    }
+
+    private static string BuildScopeLabel(TraitReference reference, string countryName)
+    {
+        return StringComparer.OrdinalIgnoreCase.Equals(reference.Scope, "country")
+            ? $"{countryName} yaklaşık referansı"
+            : "Dünya/genel yaklaşık referansı";
+    }
+
+    private static string GetRarityLabel(double share)
+    {
+        return share switch
+        {
+            >= 0.3 => "Çok yaygın",
+            >= 0.1 => "Yaygın",
+            >= 0.03 => "Daha az yaygın",
+            >= 0.01 => "Nadir",
+            _ => "Çok nadir",
+        };
+    }
+
+    private static int? EstimateOneIn(double share)
+    {
+        return share <= 0
+            ? null
+            : Math.Max(1, (int)Math.Round(1.0 / share, MidpointRounding.AwayFromZero));
     }
 
     private static string NormalizeSex(string value)

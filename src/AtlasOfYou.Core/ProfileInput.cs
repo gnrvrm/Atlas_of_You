@@ -11,4 +11,12 @@ public sealed class ProfileInput
     public double HeightCm { get; init; }
 
     public double WeightKg { get; init; }
+
+    public string EyeColor { get; init; } = string.Empty;
+
+    public string HairColor { get; init; } = string.Empty;
+
+    public string HandPreference { get; init; } = string.Empty;
+
+    public string BloodGroup { get; init; } = string.Empty;
 }

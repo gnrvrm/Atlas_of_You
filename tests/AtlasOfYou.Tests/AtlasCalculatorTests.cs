@@ -41,6 +41,10 @@ public sealed class AtlasCalculatorTests
             BirthYear = 1990,
             HeightCm = 180,
             WeightKg = 80,
+            EyeColor = "green",
+            HairColor = "red",
+            HandPreference = "left",
+            BloodGroup = "a_positive",
         };
 
         var result = AtlasCalculator.Analyze(dataset, input, new DateOnly(2026, 5, 17));
@@ -56,6 +60,12 @@ public sealed class AtlasCalculatorTests
         Assert.Equal(79.3, result.CountryEstimatedWeightKg);
         Assert.Equal(0.7, result.CountryWeightDifferenceKg);
         Assert.Equal(7, result.CohortDeltaVs1900Cm);
+        Assert.Equal("Yeşil", result.EyeColor?.Label);
+        Assert.Equal("Çok nadir", result.HairEyeCombination?.RarityLabel);
+        Assert.Equal(3333, result.HairEyeCombination?.OneIn);
+        Assert.Equal("Solak", result.HandPreference?.Label);
+        Assert.Equal("Türkiye yaklaşık referansı", result.BloodGroup?.ScopeLabel);
+        Assert.Equal(0.383, result.BloodGroup?.Share);
     }
 
     private static ReferenceDataset BuildDataset()
@@ -113,6 +123,69 @@ public sealed class AtlasCalculatorTests
                     From30To35 = 0.14,
                     From35To40 = 0.04,
                     Over40 = 0.02,
+                },
+            ],
+            TraitReferences =
+            [
+                new TraitReference
+                {
+                    Trait = "eyeColor",
+                    Value = "green",
+                    Label = "Yeşil",
+                    Scope = "world",
+                    CountryIso = "WORLD",
+                    Share = 0.02,
+                    Confidence = "orta",
+                    SourceId = "eye",
+                    Color = "#4d7c45",
+                },
+                new TraitReference
+                {
+                    Trait = "hairColor",
+                    Value = "red",
+                    Label = "Kızıl",
+                    Scope = "world",
+                    CountryIso = "WORLD",
+                    Share = 0.015,
+                    Confidence = "dusuk",
+                    SourceId = "hair",
+                    Color = "#b45325",
+                },
+                new TraitReference
+                {
+                    Trait = "handPreference",
+                    Value = "left",
+                    Label = "Solak",
+                    Scope = "world",
+                    CountryIso = "WORLD",
+                    Share = 0.106,
+                    Confidence = "orta",
+                    SourceId = "hand",
+                    Color = "#285e8f",
+                },
+                new TraitReference
+                {
+                    Trait = "bloodGroup",
+                    Value = "a_positive",
+                    Label = "A Rh+",
+                    Scope = "world",
+                    CountryIso = "WORLD",
+                    Share = 0.28,
+                    Confidence = "dusuk",
+                    SourceId = "blood",
+                    Color = "#0f766e",
+                },
+                new TraitReference
+                {
+                    Trait = "bloodGroup",
+                    Value = "a_positive",
+                    Label = "A Rh+",
+                    Scope = "country",
+                    CountryIso = "TUR",
+                    Share = 0.383,
+                    Confidence = "dusuk",
+                    SourceId = "blood",
+                    Color = "#0f766e",
                 },
             ],
         };

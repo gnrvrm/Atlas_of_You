@@ -58,5 +58,42 @@ public sealed class ComparisonResult
 
     public double? CohortDeltaVs1900Cm { get; init; }
 
+    public TraitComparison? EyeColor { get; init; }
+
+    public TraitComparison? HairColor { get; init; }
+
+    public TraitComparison? HairEyeCombination { get; init; }
+
+    public TraitComparison? HandPreference { get; init; }
+
+    public TraitComparison? BloodGroup { get; init; }
+
     public IReadOnlyList<string> Notes { get; init; } = [];
+}
+
+public sealed class TraitComparison
+{
+    public string Trait { get; init; } = string.Empty;
+
+    public string Value { get; init; } = string.Empty;
+
+    public string Label { get; init; } = string.Empty;
+
+    public double Share { get; init; }
+
+    public string Confidence { get; init; } = string.Empty;
+
+    public string SourceId { get; init; } = string.Empty;
+
+    public string Color { get; init; } = string.Empty;
+
+    public string Scope { get; init; } = string.Empty;
+
+    public string ScopeLabel { get; init; } = string.Empty;
+
+    public string RarityLabel { get; init; } = string.Empty;
+
+    public int? OneIn { get; init; }
+
+    public string? Note { get; init; }
 }

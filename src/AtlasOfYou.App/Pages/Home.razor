@@ -1,4 +1,5 @@
 @page "/"
+@using Microsoft.AspNetCore.Components.Rendering
 @using System.Text.Json
 @inject HttpClient Http
 @inject IJSRuntime Js
@@ -9,7 +10,7 @@
     <header class="topbar">
         <div class="brand">
             <h1>Atlas of You</h1>
-            <span class="badge">MVP · Referans dağılımı</span>
+            <span class="badge">v0.3.0 · Kişisel atlas</span>
         </div>
         <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
     </header>
@@ -64,6 +65,46 @@
                         <input class="input" type="number" min="35" max="250" step="0.1" @bind="weightKg" @bind:event="oninput" />
                     </label>
 
+                    <label class="field">
+                        <span>Göz rengi</span>
+                        <select class="select" @bind="selectedEyeColor">
+                            @foreach (var option in EyeColorOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Saç rengi</span>
+                        <select class="select" @bind="selectedHairColor">
+                            @foreach (var option in HairColorOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>El tercihi</span>
+                        <select class="select" @bind="selectedHandPreference">
+                            @foreach (var option in HandPreferenceOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span>Kan grubu</span>
+                        <select class="select" @bind="selectedBloodGroup">
+                            @foreach (var option in BloodGroupOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                        </select>
+                    </label>
+
                     @if (formError is not null)
                     {
                         <div class="error">@formError</div>
@@ -113,10 +154,23 @@
                         </div>
                     </div>
 
-                    <div class="trait-slots" aria-label="Gelecek görsel özellik alanları">
-                        <span>Saç rengi</span>
-                        <span>Göz rengi</span>
-                        <span>El tercihi</span>
+                    <div class="trait-slots" aria-label="Görsel özellik alanları">
+                        <span style="@TraitAccentStyle(result.HairColor)">
+                            <small>Saç</small>
+                            <strong>@TraitLabel(result.HairColor)</strong>
+                        </span>
+                        <span style="@TraitAccentStyle(result.EyeColor)">
+                            <small>Göz</small>
+                            <strong>@TraitLabel(result.EyeColor)</strong>
+                        </span>
+                        <span style="@TraitAccentStyle(result.HandPreference)">
+                            <small>El</small>
+                            <strong>@TraitLabel(result.HandPreference)</strong>
+                        </span>
+                        <span style="@TraitAccentStyle(result.BloodGroup)">
+                            <small>Kan</small>
+                            <strong>@TraitLabel(result.BloodGroup)</strong>
+                        </span>
                     </div>
                 </section>
             }
@@ -206,6 +260,38 @@
                             <div class="indicator-pin" style="@PercentilePinStyle(result.BmiReferencePercentile ?? 50)"></div>
                         </div>
                     </div>
+                </div>
+
+                <div class="trait-summary-grid" aria-label="Eğlenceli özellik özeti">
+                    <article class="trait-card" style="@TraitAccentStyle(result.EyeColor)">
+                        <span>Göz rengi</span>
+                        <strong>@TraitLabel(result.EyeColor)</strong>
+                        <p>@TraitMeta(result.EyeColor)</p>
+                    </article>
+
+                    <article class="trait-card" style="@TraitAccentStyle(result.HairColor)">
+                        <span>Saç rengi</span>
+                        <strong>@TraitLabel(result.HairColor)</strong>
+                        <p>@TraitMeta(result.HairColor)</p>
+                    </article>
+
+                    <article class="trait-card" style="@TraitAccentStyle(result.HairEyeCombination)">
+                        <span>Saç + göz</span>
+                        <strong>@TraitLabel(result.HairEyeCombination)</strong>
+                        <p>@TraitMeta(result.HairEyeCombination)</p>
+                    </article>
+
+                    <article class="trait-card" style="@TraitAccentStyle(result.HandPreference)">
+                        <span>El tercihi</span>
+                        <strong>@TraitLabel(result.HandPreference)</strong>
+                        <p>@TraitMeta(result.HandPreference)</p>
+                    </article>
+
+                    <article class="trait-card" style="@TraitAccentStyle(result.BloodGroup)">
+                        <span>Kan grubu</span>
+                        <strong>@TraitLabel(result.BloodGroup)</strong>
+                        <p>@TraitMeta(result.BloodGroup)</p>
+                    </article>
                 </div>
 
                 <div class="detail-grid">
@@ -299,6 +385,45 @@
 
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
+    private static readonly TraitOption[] EyeColorOptions =
+    [
+        new("brown", "Kahverengi"),
+        new("blue", "Mavi"),
+        new("hazel", "Ela"),
+        new("amber", "Kehribar"),
+        new("green", "Yeşil"),
+        new("gray", "Gri"),
+    ];
+
+    private static readonly TraitOption[] HairColorOptions =
+    [
+        new("black", "Siyah / koyu kahve"),
+        new("brown", "Kahverengi"),
+        new("blond", "Sarışın"),
+        new("red", "Kızıl"),
+        new("gray_white", "Gri / beyaz"),
+        new("other", "Diğer / karışık"),
+    ];
+
+    private static readonly TraitOption[] HandPreferenceOptions =
+    [
+        new("right", "Sağlak"),
+        new("left", "Solak"),
+        new("ambidextrous", "İki elli"),
+    ];
+
+    private static readonly TraitOption[] BloodGroupOptions =
+    [
+        new("a_positive", "A Rh+"),
+        new("o_positive", "0 Rh+"),
+        new("b_positive", "B Rh+"),
+        new("ab_positive", "AB Rh+"),
+        new("a_negative", "A Rh-"),
+        new("o_negative", "0 Rh-"),
+        new("b_negative", "B Rh-"),
+        new("ab_negative", "AB Rh-"),
+    ];
+
     private ReferenceDataset? dataset;
     private ComparisonResult? result;
     private string? loadError;
@@ -307,6 +432,10 @@
 
     private string selectedCountryIso = "TUR";
     private string selectedSex = "male";
+    private string selectedEyeColor = "brown";
+    private string selectedHairColor = "black";
+    private string selectedHandPreference = "right";
+    private string selectedBloodGroup = "a_positive";
     private int birthYear = 1990;
     private double heightCm = 175;
     private double weightKg = 75;
@@ -321,18 +450,25 @@
 
     private string ReportLead => result is null
         ? string.Empty
-        : $"{result.CountryName} {SexLabel(result.Sex).ToLower(Tr)} referansında boyun yaklaşık %{FormatNumber(result.HeightPercentileCountry)} percentile konumunda; BMI değerin {result.BmiBandLabel} referans bandında ve ideal yorumu değil.";
+        : $"{result.CountryName} {SexLabel(result.Sex).ToLower(Tr)} referansında boyun yaklaşık %{FormatNumber(result.HeightPercentileCountry)} percentile konumunda; BMI değerin {result.BmiBandLabel} referans bandında ve ideal yorumu değil. {FunLead}";
+
+    private string FunLead => result?.HairEyeCombination is null
+        ? string.Empty
+        : $"Eğlenceli katmanda {result.HairEyeCombination.Label.ToLower(Tr)} yaklaşık {FormatShare(result.HairEyeCombination.Share)} seviyesinde.";
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            dataset = await Http.GetFromJsonAsync<ReferenceDataset>("data/atlas-reference.json", JsonOptions);
-            if (dataset is null)
+            var physicalDataset = await Http.GetFromJsonAsync<ReferenceDataset>("data/atlas-reference.json", JsonOptions);
+            if (physicalDataset is null)
             {
                 loadError = "Referans verisi okunamadı.";
                 return;
             }
+
+            await MergeFunTraitsAsync(physicalDataset);
+            dataset = physicalDataset;
 
             selectedCountryIso = dataset.Countries.Any(item => item.Iso == "TUR")
                 ? "TUR"
@@ -343,6 +479,33 @@
         catch (Exception ex)
         {
             loadError = $"Referans verisi yüklenemedi: {ex.Message}";
+        }
+    }
+
+    private async Task MergeFunTraitsAsync(ReferenceDataset target)
+    {
+        var funTraits = await Http.GetFromJsonAsync<ReferenceDataset>("data/fun-traits.json", JsonOptions);
+        if (funTraits is null)
+        {
+            return;
+        }
+
+        target.TraitReferences.AddRange(funTraits.TraitReferences);
+
+        foreach (var source in funTraits.Sources)
+        {
+            if (!target.Sources.Any(item => item.Id == source.Id))
+            {
+                target.Sources.Add(source);
+            }
+        }
+
+        foreach (var note in funTraits.Notes)
+        {
+            if (!target.Notes.Contains(note, StringComparer.Ordinal))
+            {
+                target.Notes.Add(note);
+            }
         }
     }
 
@@ -371,6 +534,10 @@
                     BirthYear = birthYear,
                     HeightCm = heightCm,
                     WeightKg = weightKg,
+                    EyeColor = selectedEyeColor,
+                    HairColor = selectedHairColor,
+                    HandPreference = selectedHandPreference,
+                    BloodGroup = selectedBloodGroup,
                 },
                 DateOnly.FromDateTime(DateTime.Today));
             copyStatus = null;
@@ -440,6 +607,52 @@
 
     private static string FormatPercent(double share) => $"%{(share * 100).ToString("0", Tr)}";
 
+    private static string FormatShare(double share)
+    {
+        var percent = share * 100;
+        var format = percent < 1 ? "0.##" : "0.#";
+        return $"%{percent.ToString(format, Tr)}";
+    }
+
+    private static string TraitLabel(TraitComparison? trait) => trait?.Label ?? "Yok";
+
+    private static string TraitMeta(TraitComparison? trait)
+    {
+        if (trait is null)
+        {
+            return "Yaklaşık veri yok";
+        }
+
+        var oneIn = trait.OneIn is > 1 && trait.Share < 0.2
+            ? $" · yaklaşık 1/{trait.OneIn}"
+            : string.Empty;
+        return $"{FormatShare(trait.Share)} · {trait.RarityLabel}{oneIn} · {ConfidenceLabel(trait.Confidence)}";
+    }
+
+    private static string ConfidenceLabel(string confidence)
+    {
+        return confidence switch
+        {
+            "orta" => "orta güven",
+            "dusuk" => "düşük güven",
+            "yüksek" or "yuksek" => "yüksek güven",
+            _ => "yaklaşık",
+        };
+    }
+
+    private static string TraitAccentStyle(TraitComparison? trait)
+    {
+        var color = TraitColor(trait, "#0f766e");
+        return $"--trait-color:{color};";
+    }
+
+    private static string TraitColor(TraitComparison? trait, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(trait?.Color)
+            ? fallback
+            : trait.Color;
+    }
+
     private static string PercentileStyle(double percentile)
     {
         return $"--percentile:{ClampPercentile(percentile).ToString("0.###", CultureInfo.InvariantCulture)}%;";
@@ -508,6 +721,26 @@
         builder.AddAttribute(sequence++, "stroke", stroke);
         builder.CloseElement();
 
+        if (isUser)
+        {
+            builder.OpenElement(sequence++, "path");
+            builder.AddAttribute(sequence++, "class", "body-hair");
+            builder.AddAttribute(sequence++, "d", HairPath(body.CenterX, body.TopY, headCy, headRadius));
+            builder.AddAttribute(sequence++, "fill", TraitColor(result?.HairColor, "#181512"));
+            builder.CloseElement();
+
+            foreach (var eyeX in new[] { body.CenterX - (headRadius * 0.36), body.CenterX + (headRadius * 0.36) })
+            {
+                builder.OpenElement(sequence++, "circle");
+                builder.AddAttribute(sequence++, "class", "body-eye");
+                builder.AddAttribute(sequence++, "cx", eyeX.ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "cy", (headCy + (headRadius * 0.08)).ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "r", "1.9");
+                builder.AddAttribute(sequence++, "fill", TraitColor(result?.EyeColor, "#5a3825"));
+                builder.CloseElement();
+            }
+        }
+
         builder.OpenElement(sequence++, "path");
         builder.AddAttribute(sequence++, "d", BodyPath(body, shoulderY, hipY, legY, footY, shoulderWidth, waistWidth, hipWidth));
         builder.AddAttribute(sequence++, "fill", fill);
@@ -519,8 +752,65 @@
         builder.AddAttribute(sequence++, "d", ArmPath(body, shoulderY, hipY, shoulderWidth));
         builder.AddAttribute(sequence++, "stroke", stroke);
         builder.CloseElement();
+
+        if (isUser)
+        {
+            var handY = hipY + 18;
+            var leftHandX = body.CenterX - (shoulderWidth / 2) - 2;
+            var rightHandX = body.CenterX + (shoulderWidth / 2) + 2;
+            if (result?.HandPreference?.Value is "left" or "ambidextrous")
+            {
+                AddHandMarker(builder, ref sequence, leftHandX, handY);
+            }
+
+            if (result?.HandPreference?.Value is "right" or "ambidextrous")
+            {
+                AddHandMarker(builder, ref sequence, rightHandX, handY);
+            }
+
+            if (result?.BloodGroup is not null)
+            {
+                builder.OpenElement(sequence++, "rect");
+                builder.AddAttribute(sequence++, "class", "body-blood-badge");
+                builder.AddAttribute(sequence++, "x", (body.CenterX - 19).ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "y", (shoulderY + 26).ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "width", "38");
+                builder.AddAttribute(sequence++, "height", "18");
+                builder.AddAttribute(sequence++, "rx", "7");
+                builder.AddAttribute(sequence++, "fill", TraitColor(result.BloodGroup, "#a43d55"));
+                builder.CloseElement();
+
+                builder.OpenElement(sequence++, "text");
+                builder.AddAttribute(sequence++, "class", "body-blood-text");
+                builder.AddAttribute(sequence++, "x", body.CenterX.ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "y", (shoulderY + 39).ToString("0.###", CultureInfo.InvariantCulture));
+                builder.AddAttribute(sequence++, "text-anchor", "middle");
+                builder.AddContent(sequence++, result.BloodGroup.Label);
+                builder.CloseElement();
+            }
+        }
+
         builder.CloseElement();
     };
+
+    private static void AddHandMarker(RenderTreeBuilder builder, ref int sequence, double x, double y)
+    {
+        builder.OpenElement(sequence++, "circle");
+        builder.AddAttribute(sequence++, "class", "body-hand-marker");
+        builder.AddAttribute(sequence++, "cx", x.ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "cy", y.ToString("0.###", CultureInfo.InvariantCulture));
+        builder.AddAttribute(sequence++, "r", "5.5");
+        builder.CloseElement();
+    }
+
+    private static string HairPath(double centerX, double topY, double headCy, double headRadius)
+    {
+        var left = centerX - headRadius;
+        var right = centerX + headRadius;
+        var crown = topY + (headRadius * 0.2);
+        var fringe = headCy - (headRadius * 0.05);
+        return string.Create(CultureInfo.InvariantCulture, $"M {left} {headCy} C {left + 1} {crown}, {right - 1} {crown}, {right} {headCy} C {right - 5} {fringe}, {left + 5} {fringe}, {left} {headCy} Z");
+    }
 
     private static string BodyPath(BodyDrawing body, double shoulderY, double hipY, double legY, double footY, double shoulderWidth, double waistWidth, double hipWidth)
     {
@@ -559,6 +849,9 @@
             $"Boy: {FormatCm(heightCm)} ({result.CountryName} referansından {FormatSignedCm(result.CountryHeightDifferenceCm)}, dünya referansından {FormatSignedCm(result.WorldHeightDifferenceCm)})",
             $"BMI: {FormatNumber(result.Bmi)} ({result.BmiBandLabel} bandı, ideal kilo yorumu değildir)",
             $"Yaklaşık referans kilo farkı: {FormatSignedKg(result.CountryWeightDifferenceKg)}",
+            $"Göz / saç: {TraitLabel(result.EyeColor)} / {TraitLabel(result.HairColor)}",
+            $"Saç + göz nadirliği: {TraitMeta(result.HairEyeCombination)}",
+            $"El tercihi / kan grubu: {TraitLabel(result.HandPreference)} / {TraitLabel(result.BloodGroup)}",
             $"Veri güveni: yüksek; percentile ve kilo görseli yaklaşık hesaplanır.");
     }
 
@@ -596,4 +889,6 @@
     private sealed record DistributionBand(string Label, double Share, string Color);
 
     private sealed record BodyDrawing(double CenterX, double TopY, double HeightPx, double WidthPx, string Sex);
+
+    private sealed record TraitOption(string Value, string Label);
 }

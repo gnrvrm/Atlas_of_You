@@ -14,6 +14,8 @@ public sealed class ReferenceDataset
 
     public List<BmiReference> BmiReferences { get; set; } = [];
 
+    public List<TraitReference> TraitReferences { get; set; } = [];
+
     public List<SourceInfo> Sources { get; set; } = [];
 
     public List<string> Notes { get; set; } = [];
@@ -100,4 +102,25 @@ public sealed class SourceInfo
     public string Url { get; set; } = string.Empty;
 
     public string Trust { get; set; } = string.Empty;
+}
+
+public sealed class TraitReference
+{
+    public string Trait { get; set; } = string.Empty;
+
+    public string Value { get; set; } = string.Empty;
+
+    public string Label { get; set; } = string.Empty;
+
+    public string Scope { get; set; } = string.Empty;
+
+    public string CountryIso { get; set; } = string.Empty;
+
+    public double Share { get; set; }
+
+    public string Confidence { get; set; } = string.Empty;
+
+    public string SourceId { get; set; } = string.Empty;
+
+    public string Color { get; set; } = string.Empty;
 }

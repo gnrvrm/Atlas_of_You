@@ -2,7 +2,9 @@
 
 Atlas of You is a Turkish-first Blazor WebAssembly app that compares a user's physical profile with public reference distributions.
 
-The first MVP is intentionally local and privacy-light: the form runs in the browser, no account is required, and personal inputs are not sent to a backend.
+The app is intentionally local and privacy-light: the form runs in the browser, no account is required, and personal inputs are not sent to a backend.
+
+Current scope is `v0.3.0`: height, BMI reference position, approximate reference-weight visualization, eye color, natural hair color, hair + eye combination rarity, hand preference, and blood group prevalence with confidence labels.
 
 ## Stack
 
@@ -17,13 +19,17 @@ Run the pipeline from the repository root:
 
 ```powershell
 & 'C:\msys64\ucrt64\bin\python.exe' scripts\build_reference_data.py
+& 'C:\msys64\ucrt64\bin\python.exe' scripts\build_fun_traits.py
 ```
 
 It downloads raw NCD-RisC files into `data/raw/` and writes the app payload to:
 
 ```text
 src/AtlasOfYou.App/wwwroot/data/atlas-reference.json
+src/AtlasOfYou.App/wwwroot/data/fun-traits.json
 ```
+
+The `fun-traits.json` payload is intentionally approximate. It is used for prevalence and rarity language, not medical, genetic, or strict percentile claims.
 
 ## Local Development
 
