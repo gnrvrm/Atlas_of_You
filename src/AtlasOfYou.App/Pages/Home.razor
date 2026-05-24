@@ -28,7 +28,7 @@
                 <div class="form-grid">
                     <label class="field">
                         <span>Ülke</span>
-                        <select class="select" @bind="selectedCountryIso">
+                        <select class="select" aria-label="Ülke" @bind="selectedCountryIso">
                             @foreach (var country in Countries)
                             {
                                 <option value="@country.Iso">@country.Name</option>
@@ -52,22 +52,22 @@
 
                     <label class="field">
                         <span>Doğum yılı</span>
-                        <input class="input" type="number" min="1896" max="@MaxBirthYear" @bind="birthYear" @bind:event="oninput" />
+                        <input class="input" aria-label="Doğum yılı" type="number" min="1896" max="@MaxBirthYear" @bind="birthYear" @bind:event="oninput" />
                     </label>
 
                     <label class="field">
                         <span>Boy (cm)</span>
-                        <input class="input" type="number" min="120" max="230" step="0.1" @bind="heightCm" @bind:event="oninput" />
+                        <input class="input" aria-label="Boy (cm)" type="number" min="120" max="230" step="0.1" @bind="heightCm" @bind:event="oninput" />
                     </label>
 
                     <label class="field">
                         <span>Kilo (kg)</span>
-                        <input class="input" type="number" min="35" max="250" step="0.1" @bind="weightKg" @bind:event="oninput" />
+                        <input class="input" aria-label="Kilo (kg)" type="number" min="35" max="250" step="0.1" @bind="weightKg" @bind:event="oninput" />
                     </label>
 
                     <label class="field">
                         <span>Göz rengi</span>
-                        <select class="select" @bind="selectedEyeColor">
+                        <select class="select" aria-label="Göz rengi" @bind="selectedEyeColor">
                             @foreach (var option in EyeColorOptions)
                             {
                                 <option value="@option.Value">@option.Label</option>
@@ -77,7 +77,7 @@
 
                     <label class="field">
                         <span>Saç rengi</span>
-                        <select class="select" @bind="selectedHairColor">
+                        <select class="select" aria-label="Saç rengi" @bind="selectedHairColor">
                             @foreach (var option in HairColorOptions)
                             {
                                 <option value="@option.Value">@option.Label</option>
@@ -87,7 +87,7 @@
 
                     <label class="field">
                         <span>El tercihi</span>
-                        <select class="select" @bind="selectedHandPreference">
+                        <select class="select" aria-label="El tercihi" @bind="selectedHandPreference">
                             @foreach (var option in HandPreferenceOptions)
                             {
                                 <option value="@option.Value">@option.Label</option>
@@ -97,7 +97,7 @@
 
                     <label class="field">
                         <span>Kan grubu</span>
-                        <select class="select" @bind="selectedBloodGroup">
+                        <select class="select" aria-label="Kan grubu" @bind="selectedBloodGroup">
                             @foreach (var option in BloodGroupOptions)
                             {
                                 <option value="@option.Value">@option.Label</option>
@@ -484,7 +484,17 @@
 
     private async Task MergeFunTraitsAsync(ReferenceDataset target)
     {
-        var funTraits = await Http.GetFromJsonAsync<ReferenceDataset>("data/fun-traits.json", JsonOptions);
+        ReferenceDataset? funTraits;
+        try
+        {
+            funTraits = await Http.GetFromJsonAsync<ReferenceDataset>("data/fun-traits.json", JsonOptions);
+        }
+        catch
+        {
+            target.Notes.Add("Eğlenceli özellik verisi yüklenemediğinde boy ve BMI karşılaştırması çalışmaya devam eder.");
+            return;
+        }
+
         if (funTraits is null)
         {
             return;
