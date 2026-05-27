@@ -133,8 +133,6 @@ def write_json(path: pathlib.Path, payload: dict) -> None:
 
 def write_app_payload(payload: dict) -> None:
     COUNTRY_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if LEGACY_REFERENCE_FILE.exists():
-        LEGACY_REFERENCE_FILE.unlink()
 
     for existing in COUNTRY_DATA_DIR.glob("*.json"):
         existing.unlink()
@@ -147,6 +145,7 @@ def write_app_payload(payload: dict) -> None:
         "notes": payload["notes"],
     }
     write_json(MANIFEST_FILE, manifest)
+    write_json(LEGACY_REFERENCE_FILE, payload)
 
     country_isos = {country["iso"] for country in payload["countries"]}
     country_isos.add("WORLD")

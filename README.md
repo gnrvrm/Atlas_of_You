@@ -28,10 +28,11 @@ It downloads raw NCD-RisC files into `data/raw/` and writes the app payloads to:
 ```text
 src/AtlasOfYou.App/wwwroot/data/atlas-manifest.json
 src/AtlasOfYou.App/wwwroot/data/atlas-country/*.json
+src/AtlasOfYou.App/wwwroot/data/atlas-reference.json
 src/AtlasOfYou.App/wwwroot/data/fun-traits.json
 ```
 
-The manifest keeps first load small. Country-level physical reference files are fetched only when a comparison needs them.
+The manifest keeps first load small. Country-level physical reference files are fetched only when a comparison needs them. The full `atlas-reference.json` remains published as a compatibility fallback for browsers that still have an older app bundle cached.
 
 The `fun-traits.json` payload is intentionally approximate. It is used for prevalence and rarity language, not medical, genetic, or strict percentile claims.
 
