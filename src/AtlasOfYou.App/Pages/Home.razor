@@ -130,11 +130,8 @@
                         @if (!bodySceneRequested)
                         {
                             <div class="scene-lazy-panel">
-                                <strong>Hızlı açılış modu</strong>
-                                <span>3D sahne ayrı yüklenir.</span>
-                                <button class="copy-action" type="button" @onclick="StartBodySceneAsync" disabled="@isBodySceneStarting">
-                                    @(isBodySceneStarting ? "3D hazırlanıyor..." : "3D sahneyi başlat")
-                                </button>
+                                <strong>3D hazırlanıyor</strong>
+                                <span>Model birazdan otomatik görünecek.</span>
                             </div>
                         }
 
@@ -480,6 +477,7 @@
     private readonly Dictionary<string, ReferenceDataset> countryDataCache = new(StringComparer.OrdinalIgnoreCase);
     private bool isAnalyzing;
     private bool bodySceneRequested;
+    private bool bodySceneAutoStartQueued;
     private bool isBodySceneStarting;
 
     private string selectedCountryIso = "TUR";
@@ -622,6 +620,13 @@
         if (bodySceneRequested && result is not null)
         {
             await RenderBodyAtlasAsync();
+            return;
+        }
+
+        if (result is not null && !bodySceneAutoStartQueued)
+        {
+            bodySceneAutoStartQueued = true;
+            _ = AutoStartBodySceneAsync();
         }
     }
 
@@ -690,7 +695,7 @@
 
     private async Task StartBodySceneAsync()
     {
-        if (result is null)
+        if (result is null || isBodySceneStarting)
         {
             return;
         }
@@ -709,6 +714,23 @@
         {
             isBodySceneStarting = false;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task AutoStartBodySceneAsync()
+    {
+        await Task.Delay(1600);
+
+        try
+        {
+            if (result is not null && !bodySceneRequested)
+            {
+                await InvokeAsync(StartBodySceneAsync);
+            }
+        }
+        finally
+        {
+            bodySceneAutoStartQueued = false;
         }
     }
 
