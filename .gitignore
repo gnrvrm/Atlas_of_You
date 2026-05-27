@@ -7,6 +7,8 @@ obj/
 data/raw/
 artifacts/
 TestResults/
+.playwright-cli/
+output/
 
 *.user
 *.suo

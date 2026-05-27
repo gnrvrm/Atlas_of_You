@@ -1,8 +1,8 @@
 @page "/"
-@using Microsoft.AspNetCore.Components.Rendering
 @using System.Text.Json
 @inject HttpClient Http
 @inject IJSRuntime Js
+@implements IAsyncDisposable
 
 <PageTitle>Atlas of You</PageTitle>
 
@@ -10,7 +10,7 @@
     <header class="topbar">
         <div class="brand">
             <h1>Atlas of You</h1>
-            <span class="badge">v0.3.0 · Kişisel atlas</span>
+            <span class="badge">v0.4.0 · 3D atlas</span>
         </div>
         <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
     </header>
@@ -119,29 +119,24 @@
             @if (result is not null)
             {
                 <section class="body-atlas" aria-label="Vücut atlası">
-                    @{
-                        var averageBody = BuildBody(118, result.CountryMeanHeightCm, result.CountryEstimatedWeightKg ?? weightKg);
-                        var userBody = BuildBody(242, heightCm, weightKg);
-                    }
-
                     <div class="body-atlas-header">
                         <h2>Vücut atlası</h2>
-                        <span>Görsel referans</span>
+                        <span>3D ölçekli görünüm</span>
                     </div>
 
-                    <svg class="body-svg" viewBox="0 0 360 300" role="img" aria-label="Sen ve ülke ortalaması vücut karşılaştırması">
-                        <line class="body-baseline" x1="34" y1="254" x2="326" y2="254" />
-                        <line class="height-guide average-guide" x1="28" y1="@SvgNumber(averageBody.TopY)" x2="332" y2="@SvgNumber(averageBody.TopY)" />
-                        <line class="height-guide user-guide" x1="28" y1="@SvgNumber(userBody.TopY)" x2="332" y2="@SvgNumber(userBody.TopY)" />
+                    <div class="body-visual-shell" role="img" aria-label="Sen ve ülke ortalaması 3D vücut karşılaştırması">
+                        <canvas @ref="bodyCanvas" class="body-3d-canvas" aria-hidden="true"></canvas>
 
-                        @DrawBody(averageBody, false)
-                        @DrawBody(userBody, true)
+                        <div class="scene-overlay">
+                            <span class="scene-pill average-pill">Ülke ort. @FormatCm(result.CountryMeanHeightCm)</span>
+                            <span class="scene-pill user-pill">Sen @FormatCm(heightCm)</span>
+                        </div>
 
-                        <text class="body-label" x="118" y="282" text-anchor="middle">Ülke ort.</text>
-                        <text class="body-label body-label-user" x="242" y="282" text-anchor="middle">Sen</text>
-                        <text class="body-marker average-text" x="30" y="@SvgNumber(averageBody.TopY - 7)">Ort. @FormatCm(result.CountryMeanHeightCm)</text>
-                        <text class="body-marker user-text" x="330" y="@SvgNumber(userBody.TopY - 7)" text-anchor="end">@FormatCm(heightCm)</text>
-                    </svg>
+                        @if (bodySceneError is not null)
+                        {
+                            <div class="scene-error">@bodySceneError</div>
+                        }
+                    </div>
 
                     <div class="body-stat-grid">
                         <div>
@@ -429,6 +424,10 @@
     private string? loadError;
     private string? formError;
     private string? copyStatus;
+    private string? bodySceneError;
+    private string? bodyScenePayloadKey;
+    private ElementReference bodyCanvas;
+    private IJSObjectReference? bodyAtlasModule;
 
     private string selectedCountryIso = "TUR";
     private string selectedSex = "male";
@@ -482,6 +481,77 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (result is not null)
+        {
+            await RenderBodyAtlasAsync();
+        }
+    }
+
+    private async Task RenderBodyAtlasAsync()
+    {
+        if (result is null)
+        {
+            return;
+        }
+
+        var currentKey = string.Join("|",
+            selectedCountryIso,
+            selectedSex,
+            heightCm.ToString("0.###", CultureInfo.InvariantCulture),
+            weightKg.ToString("0.###", CultureInfo.InvariantCulture),
+            result.CountryMeanHeightCm.ToString("0.###", CultureInfo.InvariantCulture),
+            (result.CountryEstimatedWeightKg ?? weightKg).ToString("0.###", CultureInfo.InvariantCulture),
+            result.HairColor?.Value,
+            result.EyeColor?.Value,
+            result.HandPreference?.Value,
+            result.BloodGroup?.Value);
+
+        if (currentKey == bodyScenePayloadKey && bodySceneError is null)
+        {
+            return;
+        }
+
+        bodyScenePayloadKey = currentKey;
+
+        try
+        {
+            bodyAtlasModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/bodyAtlas3d.js");
+            await bodyAtlasModule.InvokeVoidAsync("renderBodyAtlas3d", bodyCanvas, new
+            {
+                selectedSex,
+                countryName = result.CountryName,
+                userHeightCm = heightCm,
+                averageHeightCm = result.CountryMeanHeightCm,
+                userWeightKg = weightKg,
+                referenceWeightKg = result.CountryEstimatedWeightKg ?? weightKg,
+                heightDiffCm = result.CountryHeightDifferenceCm,
+                weightDiffKg = result.CountryWeightDifferenceKg,
+                hairColor = TraitColor(result.HairColor, "#181512"),
+                eyeColor = TraitColor(result.EyeColor, "#5a3825"),
+                handPreference = result.HandPreference?.Value ?? selectedHandPreference,
+                bloodColor = TraitColor(result.BloodGroup, "#a43d55"),
+                bloodLabel = result.BloodGroup?.Label ?? "-",
+            });
+
+            if (bodySceneError is not null)
+            {
+                bodySceneError = null;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch
+        {
+            const string message = "3D sahne yüklenemedi. Karşılaştırma verileri yine kullanılabilir.";
+            if (bodySceneError != message)
+            {
+                bodySceneError = message;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
     private async Task MergeFunTraitsAsync(ReferenceDataset target)
     {
         ReferenceDataset? funTraits;
@@ -530,6 +600,7 @@
         if (formError is not null)
         {
             result = null;
+            bodyScenePayloadKey = null;
             return;
         }
 
@@ -551,11 +622,14 @@
                 },
                 DateOnly.FromDateTime(DateTime.Today));
             copyStatus = null;
+            bodySceneError = null;
+            bodyScenePayloadKey = null;
         }
         catch (Exception ex)
         {
             result = null;
             formError = ex.Message;
+            bodyScenePayloadKey = null;
         }
     }
 
@@ -593,8 +667,6 @@
     private static string FormatKg(double value) => $"{FormatNumber(value)} kg";
 
     private static string FormatOptionalKg(double? value) => value is null ? "Yok" : FormatKg(value.Value);
-
-    private static string SvgNumber(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
 
     private static string FormatSignedCm(double value)
     {
@@ -678,174 +750,6 @@
         return $"--share:{(band.Share * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;--bar-color:{band.Color};";
     }
 
-    private BodyDrawing BuildBody(double centerX, double bodyHeightCm, double bodyWeightKg)
-    {
-        if (result is null)
-        {
-            return new BodyDrawing(centerX, 58, 196, 52, selectedSex);
-        }
-
-        var visualMin = Math.Max(120, Math.Min(heightCm, result.CountryMeanHeightCm) - 14);
-        var visualMax = Math.Min(230, Math.Max(heightCm, result.CountryMeanHeightCm) + 14);
-        if (visualMax - visualMin < 24)
-        {
-            visualMin -= 12;
-            visualMax += 12;
-        }
-
-        var heightPx = 168 + ((bodyHeightCm - visualMin) / (visualMax - visualMin) * 58);
-        heightPx = Math.Clamp(heightPx, 156, 226);
-        var topY = 254 - heightPx;
-        var referenceWeight = Math.Max(result.CountryEstimatedWeightKg ?? bodyWeightKg, 1);
-        var massRatio = Math.Sqrt(Math.Clamp(bodyWeightKg / referenceWeight, 0.62, 1.55));
-        var baseWidth = selectedSex == "male" ? 54 : 50;
-        var width = Math.Clamp(baseWidth * massRatio, 38, 74);
-
-        return new BodyDrawing(centerX, topY, heightPx, width, selectedSex);
-    }
-
-    private RenderFragment DrawBody(BodyDrawing body, bool isUser) => builder =>
-    {
-        var sequence = 0;
-        var css = isUser ? "human-body user-body" : "human-body average-body";
-        var fill = isUser ? "#0f766e" : "#c8d2cf";
-        var stroke = isUser ? "#0f4f4b" : "#7f8b88";
-        var headRadius = Math.Clamp(body.HeightPx * 0.075, 10, 16);
-        var headCy = body.TopY + headRadius;
-        var shoulderY = body.TopY + (body.HeightPx * 0.22);
-        var hipY = body.TopY + (body.HeightPx * 0.58);
-        var legY = body.TopY + (body.HeightPx * 0.83);
-        var footY = body.TopY + body.HeightPx;
-        var shoulderWidth = body.WidthPx;
-        var waistWidth = body.WidthPx * (body.Sex == "male" ? 0.48 : 0.42);
-        var hipWidth = body.WidthPx * (body.Sex == "male" ? 0.64 : 0.82);
-
-        builder.OpenElement(sequence++, "g");
-        builder.AddAttribute(sequence++, "class", css);
-        builder.OpenElement(sequence++, "ellipse");
-        builder.AddAttribute(sequence++, "cx", body.CenterX.ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "cy", headCy.ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "rx", headRadius.ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "ry", (headRadius * 1.08).ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "fill", fill);
-        builder.AddAttribute(sequence++, "stroke", stroke);
-        builder.CloseElement();
-
-        if (isUser)
-        {
-            builder.OpenElement(sequence++, "path");
-            builder.AddAttribute(sequence++, "class", "body-hair");
-            builder.AddAttribute(sequence++, "d", HairPath(body.CenterX, body.TopY, headCy, headRadius));
-            builder.AddAttribute(sequence++, "fill", TraitColor(result?.HairColor, "#181512"));
-            builder.CloseElement();
-
-            foreach (var eyeX in new[] { body.CenterX - (headRadius * 0.36), body.CenterX + (headRadius * 0.36) })
-            {
-                builder.OpenElement(sequence++, "circle");
-                builder.AddAttribute(sequence++, "class", "body-eye");
-                builder.AddAttribute(sequence++, "cx", eyeX.ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "cy", (headCy + (headRadius * 0.08)).ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "r", "1.9");
-                builder.AddAttribute(sequence++, "fill", TraitColor(result?.EyeColor, "#5a3825"));
-                builder.CloseElement();
-            }
-        }
-
-        builder.OpenElement(sequence++, "path");
-        builder.AddAttribute(sequence++, "d", BodyPath(body, shoulderY, hipY, legY, footY, shoulderWidth, waistWidth, hipWidth));
-        builder.AddAttribute(sequence++, "fill", fill);
-        builder.AddAttribute(sequence++, "stroke", stroke);
-        builder.CloseElement();
-
-        builder.OpenElement(sequence++, "path");
-        builder.AddAttribute(sequence++, "class", "body-arms");
-        builder.AddAttribute(sequence++, "d", ArmPath(body, shoulderY, hipY, shoulderWidth));
-        builder.AddAttribute(sequence++, "stroke", stroke);
-        builder.CloseElement();
-
-        if (isUser)
-        {
-            var handY = hipY + 18;
-            var leftHandX = body.CenterX - (shoulderWidth / 2) - 2;
-            var rightHandX = body.CenterX + (shoulderWidth / 2) + 2;
-            if (result?.HandPreference?.Value is "left" or "ambidextrous")
-            {
-                AddHandMarker(builder, ref sequence, leftHandX, handY);
-            }
-
-            if (result?.HandPreference?.Value is "right" or "ambidextrous")
-            {
-                AddHandMarker(builder, ref sequence, rightHandX, handY);
-            }
-
-            if (result?.BloodGroup is not null)
-            {
-                builder.OpenElement(sequence++, "rect");
-                builder.AddAttribute(sequence++, "class", "body-blood-badge");
-                builder.AddAttribute(sequence++, "x", (body.CenterX - 19).ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "y", (shoulderY + 26).ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "width", "38");
-                builder.AddAttribute(sequence++, "height", "18");
-                builder.AddAttribute(sequence++, "rx", "7");
-                builder.AddAttribute(sequence++, "fill", TraitColor(result.BloodGroup, "#a43d55"));
-                builder.CloseElement();
-
-                builder.OpenElement(sequence++, "text");
-                builder.AddAttribute(sequence++, "class", "body-blood-text");
-                builder.AddAttribute(sequence++, "x", body.CenterX.ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "y", (shoulderY + 39).ToString("0.###", CultureInfo.InvariantCulture));
-                builder.AddAttribute(sequence++, "text-anchor", "middle");
-                builder.AddContent(sequence++, result.BloodGroup.Label);
-                builder.CloseElement();
-            }
-        }
-
-        builder.CloseElement();
-    };
-
-    private static void AddHandMarker(RenderTreeBuilder builder, ref int sequence, double x, double y)
-    {
-        builder.OpenElement(sequence++, "circle");
-        builder.AddAttribute(sequence++, "class", "body-hand-marker");
-        builder.AddAttribute(sequence++, "cx", x.ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "cy", y.ToString("0.###", CultureInfo.InvariantCulture));
-        builder.AddAttribute(sequence++, "r", "5.5");
-        builder.CloseElement();
-    }
-
-    private static string HairPath(double centerX, double topY, double headCy, double headRadius)
-    {
-        var left = centerX - headRadius;
-        var right = centerX + headRadius;
-        var crown = topY + (headRadius * 0.2);
-        var fringe = headCy - (headRadius * 0.05);
-        return string.Create(CultureInfo.InvariantCulture, $"M {left} {headCy} C {left + 1} {crown}, {right - 1} {crown}, {right} {headCy} C {right - 5} {fringe}, {left + 5} {fringe}, {left} {headCy} Z");
-    }
-
-    private static string BodyPath(BodyDrawing body, double shoulderY, double hipY, double legY, double footY, double shoulderWidth, double waistWidth, double hipWidth)
-    {
-        var cx = body.CenterX;
-        var shoulderLeft = cx - (shoulderWidth / 2);
-        var shoulderRight = cx + (shoulderWidth / 2);
-        var waistLeft = cx - (waistWidth / 2);
-        var waistRight = cx + (waistWidth / 2);
-        var hipLeft = cx - (hipWidth / 2);
-        var hipRight = cx + (hipWidth / 2);
-        var legGap = Math.Max(5, body.WidthPx * 0.1);
-        var footWidth = Math.Max(10, body.WidthPx * 0.18);
-
-        return string.Create(CultureInfo.InvariantCulture, $"M {shoulderLeft} {shoulderY} C {waistLeft} {shoulderY + 18}, {waistLeft} {hipY - 22}, {hipLeft} {hipY} L {cx - legGap} {legY} L {cx - footWidth} {footY} L {cx - 4} {footY} L {cx} {legY + 4} L {cx + 4} {footY} L {cx + footWidth} {footY} L {cx + legGap} {legY} L {hipRight} {hipY} C {waistRight} {hipY - 22}, {waistRight} {shoulderY + 18}, {shoulderRight} {shoulderY} Z");
-    }
-
-    private static string ArmPath(BodyDrawing body, double shoulderY, double hipY, double shoulderWidth)
-    {
-        var cx = body.CenterX;
-        var leftShoulder = cx - (shoulderWidth / 2) + 4;
-        var rightShoulder = cx + (shoulderWidth / 2) - 4;
-        var handY = hipY + 18;
-        return string.Create(CultureInfo.InvariantCulture, $"M {leftShoulder} {shoulderY + 8} C {leftShoulder - 18} {shoulderY + 40}, {leftShoulder - 16} {handY - 10}, {leftShoulder - 6} {handY} M {rightShoulder} {shoulderY + 8} C {rightShoulder + 18} {shoulderY + 40}, {rightShoulder + 16} {handY - 10}, {rightShoulder + 6} {handY}");
-    }
-
     private string BuildReportText()
     {
         if (result is null)
@@ -896,9 +800,23 @@
         yield return new("40+", reference.Over40, "#4c1d95");
     }
 
-    private sealed record DistributionBand(string Label, double Share, string Color);
+    public async ValueTask DisposeAsync()
+    {
+        if (bodyAtlasModule is not null)
+        {
+            try
+            {
+                await bodyAtlasModule.InvokeVoidAsync("disposeBodyAtlas3d", bodyCanvas);
+                await bodyAtlasModule.DisposeAsync();
+            }
+            catch
+            {
+                // The page may be unloading while the WebGL context is already gone.
+            }
+        }
+    }
 
-    private sealed record BodyDrawing(double CenterX, double TopY, double HeightPx, double WidthPx, string Sex);
+    private sealed record DistributionBand(string Label, double Share, string Color);
 
     private sealed record TraitOption(string Value, string Label);
 }

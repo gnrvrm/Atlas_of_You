@@ -4,12 +4,13 @@ Atlas of You is a Turkish-first Blazor WebAssembly app that compares a user's ph
 
 The app is intentionally local and privacy-light: the form runs in the browser, no account is required, and personal inputs are not sent to a backend.
 
-Current scope is `v0.3.0`: height, BMI reference position, approximate reference-weight visualization, eye color, natural hair color, hair + eye combination rarity, hand preference, and blood group prevalence with confidence labels.
+Current scope is `v0.4.0`: height, BMI reference position, approximate reference-weight comparison, eye color, natural hair color, hair + eye combination rarity, hand preference, blood group prevalence with confidence labels, and a Three.js 3D body atlas.
 
 ## Stack
 
 - C# / .NET 9 Blazor WebAssembly for the app UI and calculations.
 - C# class library for testable comparison logic.
+- Three.js for the interactive 3D body atlas, served as a static app asset.
 - Python 3 standard-library pipeline for downloading and shaping NCD-RisC reference data.
 - GitHub Pages deployment at `https://gnrvrm.github.io/Atlas_of_You/`.
 
