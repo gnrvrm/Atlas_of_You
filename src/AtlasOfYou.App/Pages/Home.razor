@@ -10,7 +10,7 @@
     <header class="topbar">
         <div class="brand">
             <h1>Atlas of You</h1>
-            <span class="badge">v0.4.0 · 3D atlas</span>
+            <span class="badge">v0.5.0 · Atlas kartı</span>
         </div>
         <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
     </header>
@@ -110,8 +110,8 @@
                         <div class="error">@formError</div>
                     }
 
-                    <button class="primary-action" type="button" @onclick="AnalyzeProfile" disabled="@(dataset is null)">
-                        Karşılaştır
+                    <button class="primary-action" type="button" @onclick="AnalyzeProfileAsync" disabled="@(dataset is null || isAnalyzing)">
+                        @(isAnalyzing ? "Hazırlanıyor..." : "Karşılaştır")
                     </button>
                 </div>
             }
@@ -125,11 +125,31 @@
                     </div>
 
                     <div class="body-visual-shell" role="img" aria-label="Sen ve ülke ortalaması 3D vücut karşılaştırması">
-                        <canvas @ref="bodyCanvas" class="body-3d-canvas" aria-hidden="true"></canvas>
+                        <canvas @ref="bodyCanvas" class="@BodyCanvasClass" aria-hidden="true"></canvas>
+
+                        @if (!bodySceneRequested)
+                        {
+                            <div class="scene-lazy-panel">
+                                <strong>Hızlı açılış modu</strong>
+                                <span>3D sahne ayrı yüklenir.</span>
+                                <button class="copy-action" type="button" @onclick="StartBodySceneAsync" disabled="@isBodySceneStarting">
+                                    @(isBodySceneStarting ? "3D hazırlanıyor..." : "3D sahneyi başlat")
+                                </button>
+                            </div>
+                        }
 
                         <div class="scene-overlay">
                             <span class="scene-pill average-pill">Ülke ort. @FormatCm(result.CountryMeanHeightCm)</span>
                             <span class="scene-pill user-pill">Sen @FormatCm(heightCm)</span>
+                        </div>
+
+                        <div class="scene-hotspots" aria-label="3D bilgi bölgeleri">
+                            <button class="@SceneHotspotClass("height")" type="button" @onclick='@(() => SetSceneInsight("height"))' aria-label="Boy karşılaştırmasını göster">Boy</button>
+                            <button class="@SceneHotspotClass("body")" type="button" @onclick='@(() => SetSceneInsight("body"))' aria-label="BMI referansını göster">BMI</button>
+                            <button class="@SceneHotspotClass("hair")" type="button" @onclick='@(() => SetSceneInsight("hair"))' aria-label="Saç rengi yaygınlığını göster">Saç</button>
+                            <button class="@SceneHotspotClass("eye")" type="button" @onclick='@(() => SetSceneInsight("eye"))' aria-label="Göz rengi yaygınlığını göster">Göz</button>
+                            <button class="@SceneHotspotClass("hand")" type="button" @onclick='@(() => SetSceneInsight("hand"))' aria-label="El tercihi yaygınlığını göster">El</button>
+                            <button class="@SceneHotspotClass("blood")" type="button" @onclick='@(() => SetSceneInsight("blood"))' aria-label="Kan grubu yaygınlığını göster">Kan</button>
                         </div>
 
                         @if (bodySceneError is not null)
@@ -137,6 +157,13 @@
                             <div class="scene-error">@bodySceneError</div>
                         }
                     </div>
+
+                    <article class="scene-insight" style="@SelectedSceneInsightStyle">
+                        <span>@SelectedSceneInsightKicker</span>
+                        <strong>@SelectedSceneInsightTitle</strong>
+                        <p>@SelectedSceneInsightText</p>
+                        <small>@SelectedSceneInsightMeta</small>
+                    </article>
 
                     <div class="body-stat-grid">
                         <div>
@@ -174,7 +201,7 @@
         <section class="result-panel" aria-live="polite">
             @if (dataset is null && loadError is null)
             {
-                <div class="loading-state">Referans verisi yükleniyor...</div>
+                <div class="loading-state">@DataLoadingLabel</div>
             }
             else if (result is null)
             {
@@ -199,13 +226,33 @@
                         <span class="report-kicker">Kişisel atlas raporu</span>
                         <p>@ReportLead</p>
                     </div>
-                    <button class="copy-action" type="button" @onclick="CopyReportAsync">Raporu kopyala</button>
+                    <div class="report-actions">
+                        <button class="copy-action" type="button" @onclick="CopyReportAsync">Raporu kopyala</button>
+                        <button class="copy-action secondary-action" type="button" @onclick="DownloadAtlasCardAsync">Atlas kartını indir</button>
+                    </div>
                 </article>
 
                 @if (copyStatus is not null)
                 {
                     <div class="copy-status">@copyStatus</div>
                 }
+
+                <section class="story-panel" aria-label="Yorumlu atlas özeti">
+                    @foreach (var insight in StoryInsights)
+                    {
+                        <article class="story-card @insight.Kind">
+                            <span>@insight.Label</span>
+                            <strong>@insight.Title</strong>
+                            <p>@insight.Text</p>
+                        </article>
+                    }
+
+                    <div class="confidence-row" aria-label="Veri güveni özeti">
+                        <span class="confidence-chip strong">Boy: yüksek güven</span>
+                        <span class="confidence-chip careful">BMI: referans, ideal değil</span>
+                        <span class="confidence-chip approximate">Renk / el / kan: yaklaşık</span>
+                    </div>
+                </section>
 
                 <div class="metric-grid">
                     <article class="metric">
@@ -426,8 +473,14 @@
     private string? copyStatus;
     private string? bodySceneError;
     private string? bodyScenePayloadKey;
+    private string? dataStatus;
+    private string selectedSceneInsight = "height";
     private ElementReference bodyCanvas;
     private IJSObjectReference? bodyAtlasModule;
+    private readonly Dictionary<string, ReferenceDataset> countryDataCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool isAnalyzing;
+    private bool bodySceneRequested;
+    private bool isBodySceneStarting;
 
     private string selectedCountryIso = "TUR";
     private string selectedSex = "male";
@@ -443,37 +496,120 @@
 
     private IEnumerable<CountryReference> Countries => dataset?.Countries ?? [];
 
+    private string BodyCanvasClass => bodySceneRequested
+        ? "body-3d-canvas"
+        : "body-3d-canvas idle";
+
+    private string DataLoadingLabel => dataStatus ?? "Referans verisi yükleniyor...";
+
     private string GeneratedLabel => dataset is null
         ? string.Empty
         : $"Veri: {dataset.GeneratedAtUtc.ToLocalTime():dd.MM.yyyy}";
 
     private string ReportLead => result is null
         ? string.Empty
-        : $"{result.CountryName} {SexLabel(result.Sex).ToLower(Tr)} referansında boyun yaklaşık %{FormatNumber(result.HeightPercentileCountry)} percentile konumunda; BMI değerin {result.BmiBandLabel} referans bandında ve ideal yorumu değil. {FunLead}";
+        : $"{HeightNarrative} {BmiNarrative} {FunLead}";
 
     private string FunLead => result?.HairEyeCombination is null
         ? string.Empty
         : $"Eğlenceli katmanda {result.HairEyeCombination.Label.ToLower(Tr)} yaklaşık {FormatShare(result.HairEyeCombination.Share)} seviyesinde.";
 
+    private string HeightNarrative => result is null
+        ? string.Empty
+        : $"Boyun, {result.CountryName} {SexLabel(result.Sex).ToLower(Tr)} referansında yaklaşık %{FormatNumber(result.HeightPercentileCountry)} percentile konumunda; ülke ortalamasına göre {DifferencePhrase(result.CountryHeightDifferenceCm)}.";
+
+    private string BmiNarrative => result is null
+        ? string.Empty
+        : $"BMI değerin {FormatNumber(result.Bmi)} ve {result.BmiBandLabel} referans bandında; bu bir ideal kilo yorumu değil, referans dağılımı okuması.";
+
+    private string TraitNarrative => result?.HairEyeCombination is null
+        ? "Eğlenceli özellikler yaklaşık veriyle yorumlanır."
+        : $"{TraitLabel(result.HairColor)} saç ve {TraitLabel(result.EyeColor).ToLower(Tr)} göz kombinasyonu yaklaşık {FormatShare(result.HairEyeCombination.Share)} yaygınlık sinyali verir.";
+
+    private IEnumerable<StoryInsight> StoryInsights
+    {
+        get
+        {
+            if (result is null)
+            {
+                yield break;
+            }
+
+            yield return new("Güçlü veri", HeightTone(result.HeightPercentileCountry), HeightNarrative, "strong");
+            yield return new("Dikkatli yorum", "BMI bir hedef değil, referans okuması", BmiNarrative, "careful");
+            yield return new("Yaklaşık sinyal", "Eğlenceli özellikler ayrı katmanda", TraitNarrative, "approximate");
+        }
+    }
+
+    private string SelectedSceneInsightKicker => selectedSceneInsight switch
+    {
+        "height" => "Güçlü veri",
+        "body" => "Referans dağılımı",
+        "hair" or "eye" or "hand" or "blood" => "Yaklaşık prevalans",
+        _ => "Atlas noktası",
+    };
+
+    private string SelectedSceneInsightTitle => selectedSceneInsight switch
+    {
+        "height" => "Boy çizgisi",
+        "body" => "Gövde ve BMI",
+        "hair" => "Saç rengi",
+        "eye" => "Göz rengi",
+        "hand" => "El tercihi",
+        "blood" => "Kan grubu",
+        _ => "Atlas noktası",
+    };
+
+    private string SelectedSceneInsightText => result is null
+        ? string.Empty
+        : selectedSceneInsight switch
+        {
+            "height" => $"{result.CountryName} referansında boyun {FormatCm(result.CountryMeanHeightCm)} ortalamaya göre {FormatSignedCm(result.CountryHeightDifferenceCm)} fark gösteriyor.",
+            "body" => $"BMI değerin {FormatNumber(result.Bmi)}. Sahnedeki gövde ölçeği yaklaşık referans kilo farkını gösterir; ideal kilo yorumu değildir.",
+            "hair" => $"{TraitLabel(result.HairColor)} saç için yaygınlık sinyali {TraitMeta(result.HairColor)}.",
+            "eye" => $"{TraitLabel(result.EyeColor)} göz için yaygınlık sinyali {TraitMeta(result.EyeColor)}.",
+            "hand" => $"{TraitLabel(result.HandPreference)} el tercihi için dünya geneli sinyal {TraitMeta(result.HandPreference)}.",
+            "blood" => $"{TraitLabel(result.BloodGroup)} kan grubu ülkelere göre dağınık kaynaklardan yaklaşık okunur: {TraitMeta(result.BloodGroup)}.",
+            _ => ReportLead,
+        };
+
+    private string SelectedSceneInsightMeta => selectedSceneInsight switch
+    {
+        "height" => "NCD-RisC referansı, percentile yaklaşık hesaplanır.",
+        "body" => "BMI bandı sağlık önerisi veya hedef kilo değildir.",
+        "hair" or "eye" or "hand" or "blood" => "Bu katman eğlenceli prevalans sinyali olarak sunulur.",
+        _ => "Atlas of You",
+    };
+
+    private string SelectedSceneInsightStyle => selectedSceneInsight switch
+    {
+        "hair" => TraitAccentStyle(result?.HairColor),
+        "eye" => TraitAccentStyle(result?.EyeColor),
+        "hand" => TraitAccentStyle(result?.HandPreference),
+        "blood" => TraitAccentStyle(result?.BloodGroup),
+        "body" => "--trait-color:#b45309;",
+        _ => "--trait-color:#0f766e;",
+    };
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var physicalDataset = await Http.GetFromJsonAsync<ReferenceDataset>("data/atlas-reference.json", JsonOptions);
-            if (physicalDataset is null)
+            var manifestDataset = await Http.GetFromJsonAsync<ReferenceDataset>("data/atlas-manifest.json", JsonOptions);
+            if (manifestDataset is null)
             {
                 loadError = "Referans verisi okunamadı.";
                 return;
             }
 
-            await MergeFunTraitsAsync(physicalDataset);
-            dataset = physicalDataset;
+            await MergeFunTraitsAsync(manifestDataset);
+            dataset = manifestDataset;
 
             selectedCountryIso = dataset.Countries.Any(item => item.Iso == "TUR")
                 ? "TUR"
                 : dataset.Countries.FirstOrDefault()?.Iso ?? string.Empty;
 
-            AnalyzeProfile();
+            await AnalyzeProfileAsync();
         }
         catch (Exception ex)
         {
@@ -483,7 +619,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (result is not null)
+        if (bodySceneRequested && result is not null)
         {
             await RenderBodyAtlasAsync();
         }
@@ -491,7 +627,7 @@
 
     private async Task RenderBodyAtlasAsync()
     {
-        if (result is null)
+        if (!bodySceneRequested || result is null)
         {
             return;
         }
@@ -552,6 +688,41 @@
         }
     }
 
+    private async Task StartBodySceneAsync()
+    {
+        if (result is null)
+        {
+            return;
+        }
+
+        bodySceneRequested = true;
+        isBodySceneStarting = true;
+        bodyScenePayloadKey = null;
+        bodySceneError = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await RenderBodyAtlasAsync();
+        }
+        finally
+        {
+            isBodySceneStarting = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task EnsureBodySceneAsync()
+    {
+        if (!bodySceneRequested)
+        {
+            await StartBodySceneAsync();
+            return;
+        }
+
+        await RenderBodyAtlasAsync();
+    }
+
     private async Task MergeFunTraitsAsync(ReferenceDataset target)
     {
         ReferenceDataset? funTraits;
@@ -589,7 +760,7 @@
         }
     }
 
-    private void AnalyzeProfile()
+    private async Task AnalyzeProfileAsync()
     {
         if (dataset is null)
         {
@@ -606,8 +777,11 @@
 
         try
         {
+            isAnalyzing = true;
+            dataStatus = "Seçili ülke referansı yükleniyor...";
+            var runtimeDataset = await BuildRuntimeDatasetAsync(selectedCountryIso);
             result = AtlasCalculator.Analyze(
-                dataset,
+                runtimeDataset,
                 new ProfileInput
                 {
                     CountryIso = selectedCountryIso,
@@ -624,13 +798,77 @@
             copyStatus = null;
             bodySceneError = null;
             bodyScenePayloadKey = null;
+            dataStatus = null;
         }
         catch (Exception ex)
         {
             result = null;
             formError = ex.Message;
             bodyScenePayloadKey = null;
+            dataStatus = null;
         }
+        finally
+        {
+            isAnalyzing = false;
+        }
+    }
+
+    private async Task<ReferenceDataset> BuildRuntimeDatasetAsync(string countryIso)
+    {
+        if (dataset is null)
+        {
+            throw new InvalidOperationException("Referans manifesti yüklenmedi.");
+        }
+
+        var selectedCountryData = await LoadCountryDatasetAsync(countryIso);
+        var dataFiles = new List<ReferenceDataset> { selectedCountryData };
+        if (!StringComparer.OrdinalIgnoreCase.Equals(countryIso, "WORLD"))
+        {
+            dataFiles.Add(await LoadCountryDatasetAsync("WORLD"));
+        }
+
+        return new ReferenceDataset
+        {
+            SchemaVersion = dataset.SchemaVersion,
+            GeneratedAtUtc = dataset.GeneratedAtUtc,
+            Countries = dataset.Countries,
+            HeightCohorts = dataFiles.SelectMany(item => item.HeightCohorts).ToList(),
+            YoungAdultHeight = dataFiles.SelectMany(item => item.YoungAdultHeight).ToList(),
+            BmiReferences = dataFiles.SelectMany(item => item.BmiReferences).ToList(),
+            TraitReferences = dataset.TraitReferences,
+            Sources = dataset.Sources,
+            Notes = dataset.Notes,
+        };
+    }
+
+    private async Task<ReferenceDataset> LoadCountryDatasetAsync(string countryIso)
+    {
+        if (countryDataCache.TryGetValue(countryIso, out var cached))
+        {
+            return cached;
+        }
+
+        var payload = await Http.GetFromJsonAsync<ReferenceDataset>(
+            $"data/atlas-country/{Uri.EscapeDataString(countryIso)}.json",
+            JsonOptions);
+        if (payload is null)
+        {
+            throw new InvalidOperationException($"{countryIso} referans verisi okunamadı.");
+        }
+
+        countryDataCache[countryIso] = payload;
+        return payload;
+    }
+
+    private void SetSceneInsight(string insight)
+    {
+        selectedSceneInsight = insight;
+    }
+
+    private string SceneHotspotClass(string insight)
+    {
+        var active = selectedSceneInsight == insight ? " active" : string.Empty;
+        return $"scene-hotspot {insight}{active}";
     }
 
     private string? ValidateForm()
@@ -750,6 +988,71 @@
         return $"--share:{(band.Share * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;--bar-color:{band.Color};";
     }
 
+    private static string DifferencePhrase(double difference)
+    {
+        if (Math.Abs(difference) < 0.5)
+        {
+            return "ortalama ile neredeyse aynı çizgide";
+        }
+
+        var absolute = FormatCm(Math.Abs(difference));
+        return difference > 0
+            ? $"ortalamanın {FormatSignedCm(difference)} üstünde"
+            : $"ortalamanın {absolute} altında";
+    }
+
+    private static string HeightTone(double percentile)
+    {
+        if (percentile < 25)
+        {
+            return "Boyun referansın alt çeyreğine yakın";
+        }
+
+        if (percentile > 75)
+        {
+            return "Boyun referansın üst çeyreğine yakın";
+        }
+
+        return "Boyun referansın orta bandında";
+    }
+
+    private object BuildAtlasCardPayload()
+    {
+        if (result is null)
+        {
+            return new { };
+        }
+
+        return new
+        {
+            title = "Atlas of You",
+            version = "v0.5.0",
+            subtitle = $"{result.CountryName} · {SexLabel(result.Sex)} · {result.Age} yaş",
+            narrative = ReportLead,
+            fileName = $"atlas-of-you-{result.CountryIso.ToLowerInvariant()}-{result.Sex}-{DateTime.Today:yyyyMMdd}.png",
+            metrics = new[]
+            {
+                new { label = "Ülke boy konumu", value = $"%{FormatNumber(result.HeightPercentileCountry)}", detail = FormatSignedCm(result.CountryHeightDifferenceCm), color = "#0f766e" },
+                new { label = "Dünya boy konumu", value = $"%{FormatNumber(result.HeightPercentileWorld)}", detail = FormatSignedCm(result.WorldHeightDifferenceCm), color = "#285e8f" },
+                new { label = "BMI", value = FormatNumber(result.Bmi), detail = $"{result.BmiBandLabel} · ideal değil", color = "#b45309" },
+                new { label = "BMI referansı", value = PercentileOrDash(result.BmiReferencePercentile), detail = result.BmiAgeGroup ?? "Yaş grubu yok", color = "#a43d55" },
+            },
+            traits = new[]
+            {
+                new { label = "Saç", value = TraitLabel(result.HairColor), detail = TraitMeta(result.HairColor), color = TraitColor(result.HairColor, "#181512") },
+                new { label = "Göz", value = TraitLabel(result.EyeColor), detail = TraitMeta(result.EyeColor), color = TraitColor(result.EyeColor, "#5a3825") },
+                new { label = "El", value = TraitLabel(result.HandPreference), detail = TraitMeta(result.HandPreference), color = TraitColor(result.HandPreference, "#0f766e") },
+                new { label = "Kan", value = TraitLabel(result.BloodGroup), detail = TraitMeta(result.BloodGroup), color = TraitColor(result.BloodGroup, "#a43d55") },
+            },
+            notes = new[]
+            {
+                "Boy ve BMI güçlü referans veriyle, yaklaşık hesaplama diliyle sunulur.",
+                "Saç, göz, el tercihi ve kan grubu eğlenceli prevalans sinyalidir.",
+                "Girdiğin bilgiler tarayıcıda kalır.",
+            },
+        };
+    }
+
     private string BuildReportText()
     {
         if (result is null)
@@ -779,6 +1082,30 @@
         catch
         {
             copyStatus = "Tarayıcı pano erişimine izin vermedi.";
+        }
+    }
+
+    private async Task DownloadAtlasCardAsync()
+    {
+        if (result is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await EnsureBodySceneAsync();
+            if (bodyAtlasModule is null)
+            {
+                throw new InvalidOperationException("3D sahne hazır değil.");
+            }
+
+            await bodyAtlasModule.InvokeVoidAsync("downloadAtlasCard", bodyCanvas, BuildAtlasCardPayload());
+            copyStatus = "Atlas kartı PNG olarak indirildi.";
+        }
+        catch
+        {
+            copyStatus = "Atlas kartı oluşturulamadı. Tarayıcı 3D sahneyi hazır etmemiş olabilir.";
         }
     }
 
@@ -817,6 +1144,8 @@
     }
 
     private sealed record DistributionBand(string Label, double Share, string Color);
+
+    private sealed record StoryInsight(string Label, string Title, string Text, string Kind);
 
     private sealed record TraitOption(string Value, string Label);
 }

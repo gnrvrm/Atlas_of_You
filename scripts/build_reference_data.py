@@ -15,7 +15,10 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "data" / "raw"
-OUT_FILE = ROOT / "src" / "AtlasOfYou.App" / "wwwroot" / "data" / "atlas-reference.json"
+APP_DATA_DIR = ROOT / "src" / "AtlasOfYou.App" / "wwwroot" / "data"
+MANIFEST_FILE = APP_DATA_DIR / "atlas-manifest.json"
+COUNTRY_DATA_DIR = APP_DATA_DIR / "atlas-country"
+LEGACY_REFERENCE_FILE = APP_DATA_DIR / "atlas-reference.json"
 
 USER_AGENT = "AtlasOfYou/0.1 (+https://github.com/gnrvrm/Atlas_of_You)"
 CHUNK_SIZE = 1024 * 256
@@ -53,7 +56,7 @@ COUNTRY_NAME_OVERRIDES = {
 
 def main() -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     for key, url in URLS.items():
         download_with_resume(url, RAW_FILES[key])
@@ -112,15 +115,61 @@ def main() -> None:
         ],
     }
 
-    OUT_FILE.write_text(
-        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
-    print(f"Wrote {OUT_FILE.relative_to(ROOT)}")
+    write_app_payload(payload)
+    print(f"Wrote {MANIFEST_FILE.relative_to(ROOT)}")
+    print(f"Wrote {COUNTRY_DATA_DIR.relative_to(ROOT)}/*.json")
     print(f"Countries: {len(countries)}")
     print(f"Height cohorts: {len(height_cohorts)}")
     print(f"Young adult height references: {len(young_height)}")
     print(f"BMI references: {len(bmi_references)}")
+
+
+def write_json(path: pathlib.Path, payload: dict) -> None:
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+
+def write_app_payload(payload: dict) -> None:
+    COUNTRY_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if LEGACY_REFERENCE_FILE.exists():
+        LEGACY_REFERENCE_FILE.unlink()
+
+    for existing in COUNTRY_DATA_DIR.glob("*.json"):
+        existing.unlink()
+
+    manifest = {
+        "schemaVersion": payload["schemaVersion"],
+        "generatedAtUtc": payload["generatedAtUtc"],
+        "countries": payload["countries"],
+        "sources": payload["sources"],
+        "notes": payload["notes"],
+    }
+    write_json(MANIFEST_FILE, manifest)
+
+    country_isos = {country["iso"] for country in payload["countries"]}
+    country_isos.add("WORLD")
+
+    for iso in sorted(country_isos):
+        country_payload = {
+            "schemaVersion": payload["schemaVersion"],
+            "generatedAtUtc": payload["generatedAtUtc"],
+            "countries": [],
+            "heightCohorts": [
+                item for item in payload["heightCohorts"] if item["countryIso"] == iso
+            ],
+            "youngAdultHeight": [
+                item for item in payload["youngAdultHeight"] if item["countryIso"] == iso
+            ],
+            "bmiReferences": [
+                item for item in payload["bmiReferences"] if item["countryIso"] == iso
+            ],
+            "traitReferences": [],
+            "sources": [],
+            "notes": [],
+        }
+        write_json(COUNTRY_DATA_DIR / f"{iso}.json", country_payload)
 
 
 def download_with_resume(url: str, destination: pathlib.Path, attempts: int = 8) -> None:

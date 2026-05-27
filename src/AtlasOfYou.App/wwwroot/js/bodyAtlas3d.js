@@ -29,6 +29,85 @@ export function disposeBodyAtlas3d(canvas) {
   states.delete(canvas);
 }
 
+export function downloadAtlasCard(canvas, payload) {
+  if (!canvas) {
+    throw new Error("3D canvas is not ready.");
+  }
+
+  const card = document.createElement("canvas");
+  card.width = 1200;
+  card.height = 1600;
+  const ctx = card.getContext("2d");
+  const metrics = Array.isArray(payload.metrics) ? payload.metrics : [];
+  const traits = Array.isArray(payload.traits) ? payload.traits : [];
+  const notes = Array.isArray(payload.notes) ? payload.notes : [];
+
+  ctx.fillStyle = "#f6f3ec";
+  ctx.fillRect(0, 0, card.width, card.height);
+  drawCardBackdrop(ctx);
+
+  ctx.fillStyle = "#17202a";
+  ctx.font = "900 76px Arial, sans-serif";
+  ctx.fillText(payload.title || "Atlas of You", 72, 118);
+
+  drawPill(ctx, payload.version || "v0.5.0", 850, 62, 220, 58, "#ffffff", "#0f766e", "#0f766e");
+
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "700 34px Arial, sans-serif";
+  ctx.fillText(payload.subtitle || "", 76, 176);
+
+  const scene = { x: 72, y: 220, width: 1056, height: 520 };
+  roundedRect(ctx, scene.x, scene.y, scene.width, scene.height, 28, "#eef6f3");
+  ctx.save();
+  roundedClip(ctx, scene.x, scene.y, scene.width, scene.height, 28);
+  drawSceneBackground(ctx, scene);
+  drawImageContain(ctx, canvas, scene.x + 24, scene.y + 18, scene.width - 48, scene.height - 36);
+  ctx.restore();
+
+  ctx.fillStyle = "#17202a";
+  ctx.font = "800 32px Arial, sans-serif";
+  const afterNarrative = wrapText(ctx, payload.narrative || "", 76, 805, 1048, 42, 3);
+
+  let metricY = afterNarrative + 34;
+  const metricWidth = 504;
+  const metricHeight = 154;
+  metrics.slice(0, 4).forEach((metric, index) => {
+    const x = 72 + (index % 2) * (metricWidth + 48);
+    const y = metricY + Math.floor(index / 2) * (metricHeight + 26);
+    drawMetric(ctx, metric, x, y, metricWidth, metricHeight);
+  });
+
+  const traitY = metricY + (metricHeight * 2) + 76;
+  ctx.fillStyle = "#17202a";
+  ctx.font = "900 34px Arial, sans-serif";
+  ctx.fillText("Eğlenceli Özellikler", 76, traitY);
+
+  traits.slice(0, 4).forEach((trait, index) => {
+    const x = 72 + (index % 2) * 528;
+    const y = traitY + 34 + Math.floor(index / 2) * 150;
+    drawTrait(ctx, trait, x, y, 492, 122);
+  });
+
+  const noteY = traitY + 360;
+  roundedRect(ctx, 72, noteY, 1056, 138, 24, "#fffdfa");
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "700 24px Arial, sans-serif";
+  notes.slice(0, 3).forEach((note, index) => {
+    ctx.fillText(`• ${note}`, 102, noteY + 40 + index * 36);
+  });
+
+  ctx.fillStyle = "#0f4f4b";
+  ctx.font = "800 26px Arial, sans-serif";
+  ctx.fillText("atlas-of-you · tarayıcıda oluşturuldu", 72, 1538);
+
+  const link = document.createElement("a");
+  link.download = payload.fileName || "atlas-of-you-card.png";
+  link.href = card.toDataURL("image/png");
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 function createState(canvas) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -473,6 +552,148 @@ function disposeObject(object) {
       node.userData.texture.dispose();
     }
   });
+}
+
+function drawCardBackdrop(ctx) {
+  const gradient = ctx.createLinearGradient(0, 0, 1200, 1600);
+  gradient.addColorStop(0, "#fbfaf6");
+  gradient.addColorStop(0.52, "#eef6f3");
+  gradient.addColorStop(1, "#ece8dc");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1200, 1600);
+
+  ctx.fillStyle = "rgba(15, 118, 110, 0.08)";
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(420, 0);
+  ctx.lineTo(0, 680);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawSceneBackground(ctx, rect) {
+  const gradient = ctx.createLinearGradient(rect.x, rect.y, rect.x, rect.y + rect.height);
+  gradient.addColorStop(0, "#e8f2f0");
+  gradient.addColorStop(0.55, "#f8fbf9");
+  gradient.addColorStop(1, "#e9e4da");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+
+  ctx.strokeStyle = "rgba(15, 118, 110, 0.12)";
+  ctx.lineWidth = 2;
+  for (let x = rect.x + 40; x < rect.x + rect.width; x += 64) {
+    ctx.beginPath();
+    ctx.moveTo(x, rect.y + rect.height * 0.58);
+    ctx.lineTo(x - 140, rect.y + rect.height);
+    ctx.stroke();
+  }
+}
+
+function roundedClip(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+  ctx.clip();
+}
+
+function drawPill(ctx, text, x, y, width, height, background, foreground, border) {
+  roundedRect(ctx, x, y, width, height, 18, background);
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = foreground;
+  ctx.font = "900 25px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + width / 2, y + height / 2 + 1);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawImageContain(ctx, image, x, y, width, height) {
+  const imageWidth = image.width || width;
+  const imageHeight = image.height || height;
+  const scale = Math.min(width / imageWidth, height / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawMetric(ctx, metric, x, y, width, height) {
+  roundedRect(ctx, x, y, width, height, 22, "#fffdfa");
+  ctx.strokeStyle = "#d9dfdd";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = metric.color || "#0f766e";
+  ctx.fillRect(x, y, 10, height);
+
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "900 23px Arial, sans-serif";
+  ctx.fillText(metric.label || "", x + 34, y + 38);
+
+  ctx.fillStyle = "#17202a";
+  ctx.font = "900 52px Arial, sans-serif";
+  ctx.fillText(metric.value || "", x + 34, y + 96);
+
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "700 24px Arial, sans-serif";
+  ctx.fillText(metric.detail || "", x + 34, y + 132);
+}
+
+function drawTrait(ctx, trait, x, y, width, height) {
+  roundedRect(ctx, x, y, width, height, 20, "#fffdfa");
+  ctx.strokeStyle = "#d9dfdd";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = trait.color || "#0f766e";
+  ctx.fillRect(x, y, 9, height);
+
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "900 22px Arial, sans-serif";
+  ctx.fillText(trait.label || "", x + 30, y + 32);
+
+  ctx.fillStyle = "#17202a";
+  ctx.font = "900 30px Arial, sans-serif";
+  wrapText(ctx, trait.value || "", x + 30, y + 70, width - 60, 34, 1);
+
+  ctx.fillStyle = "#5c6672";
+  ctx.font = "700 19px Arial, sans-serif";
+  wrapText(ctx, trait.detail || "", x + 30, y + 102, width - 60, 24, 1);
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 10) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  let line = "";
+  let currentY = y;
+  let lines = 0;
+
+  for (let index = 0; index < words.length; index += 1) {
+    const testLine = line ? `${line} ${words[index]}` : words[index];
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY);
+      currentY += lineHeight;
+      lines += 1;
+      line = words[index];
+      if (lines >= maxLines) {
+        return currentY;
+      }
+    } else {
+      line = testLine;
+    }
+  }
+
+  if (line && lines < maxLines) {
+    ctx.fillText(line, x, currentY);
+    currentY += lineHeight;
+  }
+
+  return currentY;
 }
 
 function toNumber(value, fallback) {

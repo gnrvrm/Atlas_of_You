@@ -4,7 +4,7 @@ Atlas of You is a Turkish-first Blazor WebAssembly app that compares a user's ph
 
 The app is intentionally local and privacy-light: the form runs in the browser, no account is required, and personal inputs are not sent to a backend.
 
-Current scope is `v0.4.0`: height, BMI reference position, approximate reference-weight comparison, eye color, natural hair color, hair + eye combination rarity, hand preference, blood group prevalence with confidence labels, and a Three.js 3D body atlas.
+Current scope is `v0.5.0`: height, BMI reference position, approximate reference-weight comparison, eye color, natural hair color, hair + eye combination rarity, hand preference, blood group prevalence with confidence labels, a lazy-loaded Three.js 3D body atlas, story-style interpretation, and downloadable Atlas Card PNG output.
 
 ## Stack
 
@@ -23,12 +23,15 @@ Run the pipeline from the repository root:
 & 'C:\msys64\ucrt64\bin\python.exe' scripts\build_fun_traits.py
 ```
 
-It downloads raw NCD-RisC files into `data/raw/` and writes the app payload to:
+It downloads raw NCD-RisC files into `data/raw/` and writes the app payloads to:
 
 ```text
-src/AtlasOfYou.App/wwwroot/data/atlas-reference.json
+src/AtlasOfYou.App/wwwroot/data/atlas-manifest.json
+src/AtlasOfYou.App/wwwroot/data/atlas-country/*.json
 src/AtlasOfYou.App/wwwroot/data/fun-traits.json
 ```
+
+The manifest keeps first load small. Country-level physical reference files are fetched only when a comparison needs them.
 
 The `fun-traits.json` payload is intentionally approximate. It is used for prevalence and rarity language, not medical, genetic, or strict percentile claims.
 
