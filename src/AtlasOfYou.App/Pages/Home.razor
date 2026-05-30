@@ -10,9 +10,24 @@
     <header class="topbar">
         <div class="brand">
             <h1>Atlas of You</h1>
-            <span class="badge">v0.5.0 · Atlas kartı</span>
+            <span class="badge">v0.6.0 · Telefon modu</span>
         </div>
-        <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
+        <div class="topbar-side">
+            <div class="privacy-note">Girdiğin bilgiler tarayıcıda kalır; hesap veya backend yok.</div>
+            <div class="pwa-actions" aria-label="Uygulama durumu">
+                <span class="@PwaStatusClass">@PwaStatusLabel</span>
+                @if (CanOfferInstall)
+                {
+                    <button class="install-action" type="button" @onclick="InstallPwaAsync" disabled="@isInstallActionBusy">
+                        @(isInstallActionBusy ? "Hazırlanıyor..." : "Telefona ekle")
+                    </button>
+                }
+                @if (pwaMessage is not null)
+                {
+                    <span class="pwa-message">@pwaMessage</span>
+                }
+            </div>
+        </div>
     </header>
 
     <section class="workspace">
@@ -225,6 +240,7 @@
                     </div>
                     <div class="report-actions">
                         <button class="copy-action" type="button" @onclick="CopyReportAsync">Raporu kopyala</button>
+                        <button class="copy-action secondary-action" type="button" @onclick="ShareReportAsync">Paylaş</button>
                         <button class="copy-action secondary-action" type="button" @onclick="DownloadAtlasCardAsync">Atlas kartını indir</button>
                     </div>
                 </article>
@@ -471,14 +487,19 @@
     private string? bodySceneError;
     private string? bodyScenePayloadKey;
     private string? dataStatus;
+    private string? pwaMessage;
     private string selectedSceneInsight = "height";
     private ElementReference bodyCanvas;
     private IJSObjectReference? bodyAtlasModule;
+    private DotNetObjectReference<Home>? pwaDotNetRef;
     private readonly Dictionary<string, ReferenceDataset> countryDataCache = new(StringComparer.OrdinalIgnoreCase);
+    private PwaStatus pwaStatus = new();
+    private int? pwaSubscriptionId;
     private bool isAnalyzing;
     private bool bodySceneRequested;
     private bool bodySceneAutoStartQueued;
     private bool isBodySceneStarting;
+    private bool isInstallActionBusy;
 
     private string selectedCountryIso = "TUR";
     private string selectedSex = "male";
@@ -499,6 +520,43 @@
         : "body-3d-canvas idle";
 
     private string DataLoadingLabel => dataStatus ?? "Referans verisi yükleniyor...";
+
+    private bool CanOfferInstall => pwaStatus.CanInstall && !pwaStatus.IsStandalone;
+
+    private string PwaStatusLabel
+    {
+        get
+        {
+            if (!pwaStatus.Online)
+            {
+                return "Çevrimdışı";
+            }
+
+            if (pwaStatus.IsStandalone)
+            {
+                return "Uygulama modu";
+            }
+
+            if (pwaStatus.ServiceWorkerController)
+            {
+                return "Hızlı açılış hazır";
+            }
+
+            return pwaStatus.ServiceWorkerSupported
+                ? "Telefon modu hazırlanıyor"
+                : "Tarayıcı modu";
+        }
+    }
+
+    private string PwaStatusClass
+    {
+        get
+        {
+            var mode = pwaStatus.Online ? "online" : "offline";
+            var standalone = pwaStatus.IsStandalone ? " standalone" : string.Empty;
+            return $"pwa-status {mode}{standalone}";
+        }
+    }
 
     private string GeneratedLabel => dataset is null
         ? string.Empty
@@ -617,6 +675,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            await InitializePwaAsync();
+        }
+
         if (bodySceneRequested && result is not null)
         {
             await RenderBodyAtlasAsync();
@@ -628,6 +691,34 @@
             bodySceneAutoStartQueued = true;
             _ = AutoStartBodySceneAsync();
         }
+    }
+
+    private async Task InitializePwaAsync()
+    {
+        try
+        {
+            pwaDotNetRef ??= DotNetObjectReference.Create(this);
+            pwaSubscriptionId = await Js.InvokeAsync<int>("atlasPwa.subscribe", pwaDotNetRef);
+            pwaStatus = await Js.InvokeAsync<PwaStatus>("atlasPwa.getStatus");
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            pwaStatus = new PwaStatus { Online = true };
+        }
+    }
+
+    [JSInvokable]
+    public Task UpdatePwaStatus(PwaStatus status)
+    {
+        pwaStatus = status ?? new PwaStatus { Online = true };
+
+        if (pwaStatus.IsStandalone)
+        {
+            pwaMessage = null;
+        }
+
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task RenderBodyAtlasAsync()
@@ -1048,7 +1139,7 @@
         return new
         {
             title = "Atlas of You",
-            version = "v0.5.0",
+            version = "v0.6.0",
             subtitle = $"{result.CountryName} · {SexLabel(result.Sex)} · {result.Age} yaş",
             narrative = ReportLead,
             fileName = $"atlas-of-you-{result.CountryIso.ToLowerInvariant()}-{result.Sex}-{DateTime.Today:yyyyMMdd}.png",
@@ -1094,6 +1185,33 @@
             $"Veri güveni: yüksek; percentile ve kilo görseli yaklaşık hesaplanır.");
     }
 
+    private async Task InstallPwaAsync()
+    {
+        try
+        {
+            isInstallActionBusy = true;
+            pwaMessage = null;
+            var outcome = await Js.InvokeAsync<string>("atlasPwa.tryInstall");
+            pwaStatus = await Js.InvokeAsync<PwaStatus>("atlasPwa.getStatus");
+            pwaMessage = outcome switch
+            {
+                "accepted" => "Kurulum başlatıldı.",
+                "dismissed" => "Kurulum iptal edildi.",
+                "standalone" => "Uygulama modu açık.",
+                "unavailable" => "Tarayıcı kurulum istemi göstermiyor.",
+                _ => "Kurulum durumu güncellendi.",
+            };
+        }
+        catch
+        {
+            pwaMessage = "Kurulum istemi açılamadı.";
+        }
+        finally
+        {
+            isInstallActionBusy = false;
+        }
+    }
+
     private async Task CopyReportAsync()
     {
         try
@@ -1104,6 +1222,34 @@
         catch
         {
             copyStatus = "Tarayıcı pano erişimine izin vermedi.";
+        }
+    }
+
+    private async Task ShareReportAsync()
+    {
+        if (result is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var outcome = await Js.InvokeAsync<string>("atlasPwa.share", new
+            {
+                title = "Atlas of You",
+                text = BuildReportText(),
+            });
+
+            copyStatus = outcome switch
+            {
+                "shared" => "Rapor paylaşım penceresine gönderildi.",
+                "copied" => "Rapor ve bağlantı panoya kopyalandı.",
+                _ => "Bu tarayıcı paylaşım veya pano erişimi sağlamıyor.",
+            };
+        }
+        catch
+        {
+            copyStatus = "Paylaşım açılamadı.";
         }
     }
 
@@ -1151,6 +1297,20 @@
 
     public async ValueTask DisposeAsync()
     {
+        if (pwaSubscriptionId is not null)
+        {
+            try
+            {
+                await Js.InvokeVoidAsync("atlasPwa.unsubscribe", pwaSubscriptionId.Value);
+            }
+            catch
+            {
+                // The browser runtime may already be unloading the page.
+            }
+        }
+
+        pwaDotNetRef?.Dispose();
+
         if (bodyAtlasModule is not null)
         {
             try
@@ -1170,4 +1330,19 @@
     private sealed record StoryInsight(string Label, string Title, string Text, string Kind);
 
     private sealed record TraitOption(string Value, string Label);
+
+    public sealed class PwaStatus
+    {
+        public bool CanInstall { get; set; }
+
+        public bool IsStandalone { get; set; }
+
+        public bool ServiceWorkerSupported { get; set; }
+
+        public bool ServiceWorkerController { get; set; }
+
+        public bool Online { get; set; } = true;
+
+        public bool ShareSupported { get; set; }
+    }
 }

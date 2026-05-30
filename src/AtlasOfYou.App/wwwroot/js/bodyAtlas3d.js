@@ -50,7 +50,7 @@ export function downloadAtlasCard(canvas, payload) {
   ctx.font = "900 76px Arial, sans-serif";
   ctx.fillText(payload.title || "Atlas of You", 72, 118);
 
-  drawPill(ctx, payload.version || "v0.5.0", 850, 62, 220, 58, "#ffffff", "#0f766e", "#0f766e");
+  drawPill(ctx, payload.version || "v0.6.0", 850, 62, 220, 58, "#ffffff", "#0f766e", "#0f766e");
 
   ctx.fillStyle = "#5c6672";
   ctx.font = "700 34px Arial, sans-serif";

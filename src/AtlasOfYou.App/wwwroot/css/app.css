@@ -135,6 +135,67 @@ a {
     text-align: right;
 }
 
+.topbar-side {
+    display: grid;
+    justify-items: end;
+    gap: 8px;
+}
+
+.pwa-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.pwa-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid rgba(15, 118, 110, 0.22);
+    border-radius: 999px;
+    color: var(--teal-dark);
+    background: rgba(255, 255, 255, 0.76);
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.pwa-status.offline {
+    color: #7a2336;
+    border-color: rgba(164, 61, 85, 0.26);
+    background: #fff5f7;
+}
+
+.pwa-status.standalone {
+    color: #fff;
+    border-color: var(--teal);
+    background: var(--teal);
+}
+
+.install-action {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 7px;
+    color: #fff;
+    background: var(--teal-dark);
+    font-size: 0.82rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.install-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.64;
+}
+
+.pwa-message {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
 .workspace {
     display: grid;
     grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
@@ -1018,6 +1079,14 @@ a {
     .privacy-note,
     .trust {
         text-align: left;
+    }
+
+    .topbar-side {
+        justify-items: start;
+    }
+
+    .pwa-actions {
+        justify-content: flex-start;
     }
 
     .report-card {

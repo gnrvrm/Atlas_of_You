@@ -4,7 +4,7 @@ Atlas of You is a Turkish-first Blazor WebAssembly app that compares a user's ph
 
 The app is intentionally local and privacy-light: the form runs in the browser, no account is required, and personal inputs are not sent to a backend.
 
-Current scope is `v0.5.0`: height, BMI reference position, approximate reference-weight comparison, eye color, natural hair color, hair + eye combination rarity, hand preference, blood group prevalence with confidence labels, a lazy-loaded Three.js 3D body atlas, story-style interpretation, and downloadable Atlas Card PNG output.
+Current scope is `v0.6.0`: height, BMI reference position, approximate reference-weight comparison, eye color, natural hair color, hair + eye combination rarity, hand preference, blood group prevalence with confidence labels, an auto-starting Three.js 3D body atlas, story-style interpretation, downloadable Atlas Card PNG output, and a PWA shell for phone-style install/offline use.
 
 ## Stack
 
@@ -35,6 +35,10 @@ src/AtlasOfYou.App/wwwroot/data/fun-traits.json
 The manifest keeps first load small. Country-level physical reference files are fetched only when a comparison needs them. The full `atlas-reference.json` remains published as a compatibility fallback for browsers that still have an older app bundle cached.
 
 The `fun-traits.json` payload is intentionally approximate. It is used for prevalence and rarity language, not medical, genetic, or strict percentile claims.
+
+## PWA
+
+Published builds register a service worker and expose `manifest.webmanifest`, `icon-192.png`, and `icon-512.png`. The service worker precaches the app shell and static assets, while reference JSON files are cached only after they are requested so the large legacy payload does not slow initial install.
 
 ## Local Development
 
